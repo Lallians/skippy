@@ -1,0 +1,67 @@
+services:
+  wordpress:
+    image: wordpress:php{{PHP_VERSION}}-apache
+    container_name: container-{{APPNAME_NORMALIZED}}
+    restart: always
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: ${APP_DB_USER}
+      WORDPRESS_DB_PASSWORD: ${APP_DB_PASSWORD}
+      WORDPRESS_DB_NAME: ${APP_DB_PREFIX}${APP_DB_NAME}
+      WORDPRESS_TABLE_PREFIX: ${APP_DB_TABLE_PREFIX}
+    volumes:
+      #- ./www:/var/www/html
+      - www:/var/www/html
+      - ./../../shared/opcache.ini:/usr/local/etc/php/conf.d/opcache.ini
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.{{APPNAME_NORMALIZED}}.rule=Host(`{{APPNAME_NORMALIZED}}.docker.localhost`)"
+      - "traefik.http.routers.{{APPNAME_NORMALIZED}}.entrypoints=websecure"
+      - "traefik.http.routers.{{APPNAME_NORMALIZED}}.tls=true"
+      - "traefik.http.services.{{APPNAME_NORMALIZED}}.loadbalancer.server.port=80"
+      - "traefik.docker.network=web"
+    networks:
+      - web
+      - internal
+
+  db:
+    image: mariadb:10.11
+    container_name: {{APPNAME_NORMALIZED}}-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${APP_DB_PASSWORD}
+      MYSQL_DATABASE: ${APP_DB_PREFIX}${APP_DB_NAME}
+      MYSQL_USER: ${APP_DB_USER}
+      MYSQL_PASSWORD: ${APP_DB_PASSWORD}
+    volumes:
+      - ./db:/var/lib/mysql
+    networks:
+      - internal
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: pma-{{APPNAME_NORMALIZED}}
+    restart: always
+    environment:
+      PMA_HOST: {{APPNAME_NORMALIZED}}-db
+      PMA_USER: ${APP_DB_USER}
+      PMA_PASSWORD: ${APP_DB_PASSWORD}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pma-{{APPNAME_NORMALIZED}}.rule=Host(`pma-{{APPNAME_NORMALIZED}}.docker.localhost`)"
+      - "traefik.http.routers.pma-{{APPNAME_NORMALIZED}}.entrypoints=websecure"
+      - "traefik.http.routers.pma-{{APPNAME_NORMALIZED}}.tls=true"
+      - "traefik.http.services.pma-{{APPNAME_NORMALIZED}}.loadbalancer.server.port=80"
+      - "traefik.docker.network=web"
+    networks:
+      - web
+      - internal
+
+networks:
+  web:
+    external: true
+  internal:
+    driver: bridge
+
+volumes:
+  www:

@@ -1,0 +1,62 @@
+############ SECTION Skippy ############
+.env
+/.dev
+/db/*
+!/db/.gitkeep
+############ END SECTION Skippy ############
+
+
+############ Misc ############
+.idea/
+.DS_Store
+node_modules/
+vendor/
+############ END Misc ############
+
+############ SECTION WORDPRESS ############
+
+# Core
+# On garde le core WP ?
+#/www/wp-admin/
+#/www/wp-content/index.php
+#/www/wp-content/languages
+#/www/wp-content/plugins/index.php
+#/www/wp-content/themes/index.php
+#/www/wp-includes/
+#/www/index.php
+#/www/license.txt
+#/www/readme.html
+#/www/wp-*.php
+#/www/xmlrpc.php
+
+# Configuration
+/www/wp-config.php
+
+# Example themes
+/www/wp-content/themes/twenty*/
+
+# Example plugin
+/www/wp-content/plugins/hello.php
+
+# Uploads
+/www/wp-content/uploads/
+
+# Log files
+*.log
+
+# htaccess
+/www/.htaccess
+/www/.htpasswd
+
+# All plugins
+#
+# Note: If you wish to whitelist plugins,
+# uncomment the next line
+#/www/wp-content/plugins
+
+# All themes
+#
+# Note: If you wish to whitelist themes,
+# uncomment the next line
+#/www/wp-content/themes
+############ END SECTION WORDPRESS ############
