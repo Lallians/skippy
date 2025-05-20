@@ -2,12 +2,12 @@ services:
   wordpress:
     image: wordpress:php{{PHP_VERSION}}-apache
     container_name: container-{{APPNAME_NORMALIZED}}
-    restart: always
+    restart: no
     environment:
-      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_HOST: db-{{APPNAME_NORMALIZED}}
       WORDPRESS_DB_USER: ${APP_DB_USER}
       WORDPRESS_DB_PASSWORD: ${APP_DB_PASSWORD}
-      WORDPRESS_DB_NAME: ${APP_DB_PREFIX}${APP_DB_NAME}
+      WORDPRESS_DB_NAME: ${APP_DB_TABLE_PREFIX}${APP_DB_NAME}
       WORDPRESS_TABLE_PREFIX: ${APP_DB_TABLE_PREFIX}
     volumes:
       #- ./www:/var/www/html
@@ -24,13 +24,13 @@ services:
       - web
       - internal
 
-  db:
+  db-{{APPNAME_NORMALIZED}}:
     image: mariadb:10.11
-    container_name: {{APPNAME_NORMALIZED}}-db
+    container_name: db-{{APPNAME_NORMALIZED}}
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: ${APP_DB_PASSWORD}
-      MYSQL_DATABASE: ${APP_DB_PREFIX}${APP_DB_NAME}
+      MYSQL_DATABASE: ${APP_DB_TABLE_PREFIX}${APP_DB_NAME}
       MYSQL_USER: ${APP_DB_USER}
       MYSQL_PASSWORD: ${APP_DB_PASSWORD}
     volumes:
