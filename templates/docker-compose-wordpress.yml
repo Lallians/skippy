@@ -45,6 +45,7 @@ services:
       PMA_HOST: db-{{APPNAME_NORMALIZED}}
       PMA_USER: ${APP_DB_USER}
       PMA_PASSWORD: ${APP_DB_PASSWORD}
+      UPLOAD_LIMIT: 300M
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.pma-{{APPNAME_NORMALIZED}}.rule=Host(`pma-{{APPNAME_NORMALIZED}}.docker.localhost`)"
