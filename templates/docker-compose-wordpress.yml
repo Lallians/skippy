@@ -64,4 +64,4 @@ networks:
 
 # We use Mutagen for easier dev
 volumes:
-  www:
+  {{APPNAME_NORMALIZED}}-www:
