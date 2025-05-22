@@ -5,6 +5,7 @@
     [string[]]$RemainingArgs
 )
 
+
 # Load Skippy configuration by reading the conf file
 $skippyConfFile = Join-Path -Path $PSScriptRoot skippy.conf
 if (-Not (Test-Path $skippyConfFile)) {
@@ -22,6 +23,12 @@ if (-Not (Test-Path $incPath)) {
 foreach ($script in Get-ChildItem -Path $incPath -Filter "*.ps1" -File -Recurse) {
     . $script.FullName
 }
+
+# TODO: Make sure docker is running. Skippy can not work if docker is off.
+#if () {
+#    throwError 1 "Docker is not running."
+#}
+
 
 # Parse remaining named args
 $parsedArgs = parseArguments $RemainingArgs
@@ -90,6 +97,13 @@ switch ($Command) {
                     StopProject -appName $parsedArgs[0]
                 } else {
                     StopProject
+                }
+            }
+            'restart' {
+                if($parsedArgs[0]) {
+                    RestartProject -appName $parsedArgs[0]
+                } else {
+                    RestartProject
                 }
             }
             'startMutagen' {

@@ -147,6 +147,8 @@
         # Don't forget to enable Mutagen for file synchronization
         startMutagenForProject $appNameNormalized
     } else {
+        # We build the project but we do not start mutagen
+        # because we will probably start it using skippy project start 
         docker compose create
         $message = "$message - Container created."
     }
@@ -228,9 +230,13 @@ function RemoveProject {
     }
 
     if(($confirmation -eq 'y') -or ($confirmation -eq 'yes')) {
+        
+        # Stop mutagen file sync first
+        stopMutagenForProject $appName
+
         # delete the docker part...
         Push-Location $projectPath
-        docker compose down
+        docker compose down -v # -v to remove mounted volumes
         Pop-Location
         # then delete the files
 
@@ -325,6 +331,18 @@ function StopProject {
 
 }
 
+# Restarts a project
+function RestartProject {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$appName
+    )
+
+    StopProject $appName
+    StartProject $appName
+
+}
+
 # Creates the mutagen sync session for the given project
 function startMutagenForProject {
     param (
@@ -346,7 +364,6 @@ function startMutagenForProject {
 
     # We need to specify the default owneship because mutagen sets it to root otherwise which breaks the app
     Invoke-Expression "mutagen sync create $wwwPath docker://container-$appName/var/www/html --name=$appName-www --default-file-mode-beta=0644 --default-directory-mode-beta=0755 --default-owner-beta=www-data --default-group-beta=www-data $confFileArg"
-    exit 0
 
 }
 

@@ -7,7 +7,7 @@ services:
       WORDPRESS_DB_HOST: db-{{APPNAME_NORMALIZED}}
       WORDPRESS_DB_USER: ${APP_DB_USER}
       WORDPRESS_DB_PASSWORD: ${APP_DB_PASSWORD}
-      WORDPRESS_DB_NAME: ${APP_DB_TABLE_PREFIX}${APP_DB_NAME}
+      WORDPRESS_DB_NAME: ${APP_DB_NAME}
       WORDPRESS_TABLE_PREFIX: ${APP_DB_TABLE_PREFIX}
     volumes:
       - {{APPNAME_NORMALIZED}}-www:/var/www/html
@@ -26,10 +26,10 @@ services:
   db-{{APPNAME_NORMALIZED}}:
     image: mariadb:10.11
     container_name: db-{{APPNAME_NORMALIZED}}
-    restart: always
+    restart: no
     environment:
       MYSQL_ROOT_PASSWORD: ${APP_DB_PASSWORD}
-      MYSQL_DATABASE: ${APP_DB_TABLE_PREFIX}${APP_DB_NAME}
+      MYSQL_DATABASE: ${APP_DB_NAME}
       MYSQL_USER: ${APP_DB_USER}
       MYSQL_PASSWORD: ${APP_DB_PASSWORD}
     volumes:
@@ -40,9 +40,9 @@ services:
   phpmyadmin:
     image: phpmyadmin:latest
     container_name: pma-{{APPNAME_NORMALIZED}}
-    restart: always
+    restart: no
     environment:
-      PMA_HOST: {{APPNAME_NORMALIZED}}-db
+      PMA_HOST: db-{{APPNAME_NORMALIZED}}
       PMA_USER: ${APP_DB_USER}
       PMA_PASSWORD: ${APP_DB_PASSWORD}
     labels:
