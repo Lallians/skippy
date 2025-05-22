@@ -302,3 +302,4 @@ function getAvailableProjects {
     return $availableProjects
 
 }
+

@@ -1,0 +1,6 @@
+sync:
+  defaults:
+    ignore:
+      vcs: true            # ignore .git and other VCS files on sync
+      paths:
+        - "node_modules"  # ignore node_modules folder if any

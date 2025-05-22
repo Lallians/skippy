@@ -23,7 +23,6 @@ foreach ($script in Get-ChildItem -Path $incPath -Filter "*.ps1" -File -Recurse)
     . $script.FullName
 }
 
-
 # Parse remaining named args
 $parsedArgs = parseArguments $RemainingArgs
 
@@ -91,6 +90,20 @@ switch ($Command) {
                     StopProject -appName $parsedArgs[0]
                 } else {
                     StopProject
+                }
+            }
+            'startMutagen' {
+                if($parsedArgs[0]) {
+                    startMutagenForProject -appName $parsedArgs[0]
+                } else {
+                    startMutagenForProject
+                }
+            }
+            'stopMutagen' {
+                if($parsedArgs[0]) {
+                    stopMutagenForProject -appName $parsedArgs[0]
+                } else {
+                    stopMutagenForProject
                 }
             }
             'help' {

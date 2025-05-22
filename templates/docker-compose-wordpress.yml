@@ -10,9 +10,8 @@ services:
       WORDPRESS_DB_NAME: ${APP_DB_TABLE_PREFIX}${APP_DB_NAME}
       WORDPRESS_TABLE_PREFIX: ${APP_DB_TABLE_PREFIX}
     volumes:
-      #- ./www:/var/www/html
       - www:/var/www/html
-      - ./../../shared/opcache.ini:/usr/local/etc/php/conf.d/opcache.ini
+      - ./../../shared/opcache.ini:/usr/local/etc/php/conf.d/opcache.ini # Enable opcache for faster apps
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.{{APPNAME_NORMALIZED}}.rule=Host(`{{APPNAME_NORMALIZED}}.docker.localhost`)"
@@ -63,5 +62,6 @@ networks:
   internal:
     driver: bridge
 
+# We use Mutagen for easier dev
 volumes:
   www:

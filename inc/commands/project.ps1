@@ -41,8 +41,6 @@
     $projectPath = getProjectPath $appNameNormalized
     $wwwPath     = Join-Path $projectPath 'www'
     $dbPath      = Join-Path $projectPath 'db'
-    $outputDockerComposeFile   = Join-Path $projectPath "docker-compose.yml"
-    $outputEnvFile   = Join-Path $projectPath '.env'
     $gitignoreFile = Join-Path $skippyPath 'gitignores\.gitignore-default'
 
     # Check directories jic
@@ -56,11 +54,12 @@
         '{{PHP_VERSION}}' = $phpVersion
     }
     $envVars = @{}
+
     
     # We define the template we use according to the platform
     # TODO: make other platforms!
     if($platform -eq 'wordpress') {
-        $templateFile = Join-Path $templatePath 'docker-compose-template-wordpress.yml'
+        $templateFile = Join-Path $templatePath 'docker-compose-wordpress.yml'
         $gitignoreFile = Join-Path $skippyPath 'gitignores\.gitignore-wordpress'
 
         # on met en place des valeurs générées si non définies pas l'utilisateur
@@ -91,9 +90,7 @@
         exit 4
     }
     
-    
     # Check if template exists jic
-    assertInDirectory -path $templateFile -allowedRoot $allowedRoot
     if (-not (Test-Path $templateFile)) {
         throwError 3 "$($exits[3]) $templateFile"
     }
@@ -104,6 +101,13 @@
         $templateContent = $templateContent -replace $key, $templateVars[$key]
     }
     
+    # Don't forget the mutagen conf file and replace placeholders
+    $mutagenTemplateFile   = Join-Path $templatePath "mutagen.yml"
+    $mutagenFileContent = Get-Content $mutagenTemplateFile -Raw
+    foreach ($key in $templateVars.Keys) {
+        $mutagenFileContent = $mutagenFileContent -replace $key, $templateVars[$key]
+    }
+
     # Format .env file
     $envFileContent = ""
     foreach ($key in $envVars.Keys) {
@@ -127,9 +131,10 @@
     }
     
     # Write files docker-compose.yml and .env
-    $templateContent | Out-File -Encoding UTF8 -FilePath $outputDockerComposeFile
-    $envFileContent | Out-File -Encoding UTF8 -FilePath $outputEnvFile
-    cat $gitignoreFile | Out-File -Encoding UTF8 -FilePath "$projectPath\.gitignore"
+    $templateContent | Out-File -Encoding UTF8 -FilePath (Join-Path $projectPath "docker-compose.yml")
+    $mutagenFileContent | Out-File -Encoding UTF8 -FilePath (Join-Path $projectPath "mutagen.yml")
+    $envFileContent | Out-File -Encoding UTF8 -FilePath (Join-Path $projectPath '.env')
+    cat $gitignoreFile | Out-File -Encoding UTF8 -FilePath (Join-Path $projectPath '.gitignore')
     
     $message = "Project '$appNameNormalized' successfully created in: $projectPath"
 
@@ -138,8 +143,12 @@
         docker compose up -d
         $message = "$message - Container started."
         $message = "$message`n Accessible to https://$appName.docker.localhost"
+
+        # Don't forget to enable Mutagen for file synchronization
+        startMutagenForProject $appNameNormalized
     } else {
         docker compose create
+        $message = "$message - Container created."
     }
     Pop-Location
 
@@ -284,9 +293,13 @@ function StartProject {
     docker compose start
     Pop-Location
     
+    # Start file sync silently
+    startMutagenForProject $appName > $null
+
 }
 
 # Essentially performs a docker compose stop on the project.
+# Also removes file sync to save resources.
 function StopProject {
     param(
         [Parameter(Mandatory=$true)]
@@ -306,5 +319,44 @@ function StopProject {
     Push-Location (getProjectPath $appName)
     docker compose stop
     Pop-Location
+
+    # Stop file sync silently
+    stopMutagenForProject $appName > $null
+
+}
+
+# Creates the mutagen sync session for the given project
+function startMutagenForProject {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$appName
+    )
+
+    $projectPath = getProjectPath $appName
+    $wwwPath = Join-Path $projectPath 'www'
+
+    # File is stored in project's dir
+    $mutagenConfFile = Join-Path $projectPath mutagen.yml
+
+    # If it does not exists, we just start the session without it
+    $confFileArg = ''
+    if(Test-Path $mutagenConfFile) {
+        $confFileArg = "--configuration-file=$mutagenConfFile"
+    }
+
+    # We need to specify the default owneship because mutagen sets it to root otherwise which breaks the app
+    Invoke-Expression "mutagen sync create $wwwPath docker://container-$appName/var/www/html --name=$appName-www --default-file-mode-beta=0644 --default-directory-mode-beta=0755 --default-owner-beta=www-data --default-group-beta=www-data $confFileArg"
+    exit 0
+
+}
+
+# Removes the mutagen sync session for the given project
+function stopMutagenForProject {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$appName
+    )
+
+    Invoke-Expression "mutagen sync terminate $appName-www"
 
 }
