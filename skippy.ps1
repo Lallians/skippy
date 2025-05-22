@@ -38,6 +38,11 @@ switch ($Command) {
             }
             'create' {
 
+                # Allows help display if "help" is only argument passed
+                if($parsedArgs.ContainsKey(0) -and $parsedArgs[0] -eq 'help') {
+                    displayHelp('project-create')
+                }
+
                 $fnArgs = @{
                     'appName' = ''
                     'platform' = ''
@@ -72,6 +77,20 @@ switch ($Command) {
                     RemoveProject -appName $parsedArgs[0]
                 } else {
                     RemoveProject
+                }
+            }
+            'start' {
+                if($parsedArgs[0]) {
+                    StartProject -appName $parsedArgs[0]
+                } else {
+                    StartProject
+                }
+            }
+            'stop' {
+                if($parsedArgs[0]) {
+                    StopProject -appName $parsedArgs[0]
+                } else {
+                    StopProject
                 }
             }
             'help' {

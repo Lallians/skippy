@@ -133,13 +133,15 @@
     
     $message = "Project '$appNameNormalized' successfully created in: $projectPath"
 
+    Push-Location $projectPath
     if($startAfterCreation) {
-        Push-Location $projectPath
         docker compose up -d
-        Pop-Location
         $message = "$message - Container started."
         $message = "$message`n Accessible to https://$appName.docker.localhost"
+    } else {
+        docker compose create
     }
+    Pop-Location
 
     log $message -1
 
@@ -242,61 +244,7 @@ function RemoveProject {
 # Function that shows the available projects and terminate the script
 function showAvailableProjects {
 
-    $availableProjects = @{}
-    $projectsPath = getProjectsPath
-
-    $folders = Get-ChildItem $projectsPath
-    if($folders.Count -gt 0) {
-
-        foreach ($folder in $folders) {
-            $folderName = $folder.Name
-        
-            # Check if a Docker container with that name exists (running or stopped)
-            # We must go to the Docker directory to be able to do that
-    
-            $containers = docker ps -a --filter "name=$folderName$" --format "{{.Names}}"
-            if ($containers.Count -gt 0) {
-                # We found at least one container so we know a project exists in docker
-                # Let's gather some stats
-                # TODO: Gather more stats :)
-    
-                # Check if all containers are running
-                $running_containers = 0
-                foreach($container in $containers) {
-                    $status = (docker inspect -f '{{.State.Status}}' $container)
-                    if($status -eq 'running') {
-                        $running_containers++
-                    }
-                }
-
-                # Add some quick visuals
-                if($running_containers -eq 0) {
-                    $emoji = '❌'
-                    $status_message = 'Not running'
-                } elseif($running_containers -eq $containers.Count) {
-                    $emoji = '✅'
-                    $status_message = 'OK'
-                } else {
-                    # some containers are running but not all
-                    $emoji = '⚠️'
-                    $status_message = 'Need attention'
-                }
-    
-                #$availableProjects[$folder.Name] = "$emoji status: " + 
-                $availableProjects[$folder.Name] = @{
-                    'status' = "$emoji $status_message"
-                    'containers_running' = ($running_containers -as [string]) + '/' + ($containers.Count -as [string]) + ' running'
-                    'integrity' = 'OK'
-                }
-
-            } else {
-                $availableProjects[$folder.Name] = @{
-                    'status' = '⚠️ Need attention'
-                    'integrity' = 'Files found on disk but there is no container assigned.'
-                }
-            }
-        }
-    }
+    $availableProjects = getAvailableProjects
 
     if($availableProjects.Count -eq 0) {
         log 'No project have been found.' 1
@@ -311,5 +259,52 @@ function showAvailableProjects {
     }
 
     exit 0
+
+}
+
+
+# Essentially performs a docker compose start on the project.
+function StartProject {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$appName
+    )
+
+    $projects = getAvailableProjects
+
+    if(-not $projects.ContainsKey($appName)) {
+        log "App $appName does not exists." 4
+    }
+
+    if($projects[$appName].running) {
+        log "App $appName is already running." 4
+    }
+
+    Push-Location (getProjectPath $appName)
+    docker compose start
+    Pop-Location
+    
+}
+
+# Essentially performs a docker compose stop on the project.
+function StopProject {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$appName
+    )
+
+    $projects = getAvailableProjects
+
+    if(-not $projects.ContainsKey($appName)) {
+        log "App $appName does not exists." 4
+    }
+
+    if(-not $projects[$appName].running) {
+        log "App $appName is not running." 4
+    }
+
+    Push-Location (getProjectPath $appName)
+    docker compose stop
+    Pop-Location
 
 }
