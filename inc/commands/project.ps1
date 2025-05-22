@@ -158,6 +158,7 @@ function DisableAutoStart {
     if($IDs.Count -gt 0) {
         foreach($id in $IDs) {
             docker update --restart=no $id > $null
+            log '✅ Auto start DISABLED'
         }
     } else {
         log "No container found for app $appName" 4
@@ -177,6 +178,7 @@ function EnableAutoStart {
     if($IDs.Count -gt 0) {
         foreach($id in $IDs) {
             docker update --restart=always $id > $null
+            log '✅ Auto start ENABLED'
         }
     } else {
         log "No container found for app $appName" 4
@@ -289,7 +291,7 @@ function showAvailableProjects {
 
             } else {
                 $availableProjects[$folder.Name] = @{
-                    'status' = 'Need attention'
+                    'status' = '⚠️ Need attention'
                     'integrity' = 'Files found on disk but there is no container assigned.'
                 }
             }
@@ -300,11 +302,6 @@ function showAvailableProjects {
         log 'No project have been found.' 1
         exit 0
     }
-
-    # Lastly, we display the informations in a formatted way
-    #foreach($availableProject in $availableProjects) {
-    #    Write-Host $availableProject.status
-    #}
 
     $availableProjects.GetEnumerator() | ForEach-Object {
         Write-Host "$($_.Key):"
