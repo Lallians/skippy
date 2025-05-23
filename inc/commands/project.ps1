@@ -353,10 +353,14 @@ function RestartProject {
 
     if(($confirmation -eq 'y') -or ($confirmation -eq 'yes')) {
 
+        stopMutagenForProject $appName
+
         Push-Location (getProjectPath $appName)
         docker compose down -v
         docker compose up -d
         Pop-Location
+
+        startMutagenForProject $appName
 
     } else {
         log 'Aborted.'
