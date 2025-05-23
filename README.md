@@ -7,6 +7,8 @@ Skippy is designed to work with the folowing:
 - Windows with PowerShell v5.1
 - Docker Desktop
 - Mutagen - required for speed and easier development by syncing files between the PC and Docker mounted volumes.
+- A running and configured Traefik image (to allow access to https://appName.docker.localhost). Certificates must be provided (self signed works) to allow HTTPS.
+- 
 
 ## Features
 - Manage your dev environements with `skippy project`
@@ -39,8 +41,38 @@ If the above command is not permitted because of script execution policy, run th
 ```bash
 Set-ExecutionPolicy Unrestricted -Scope CurrentUser -Force
 ```
+Now you need to configure Skippy. Edit the file `skippy.conf` located in Skippy's folder and setup the following variables:
+- `dockerPath`: the absolute path of Docker containers.
+- `skippyPath`: the absolute path where you placed skippy, eg `C:\Users\You\Documents\skippy`
 
 ## TODO
 - Allow management of project types by using yml configuration files
+- Auto-wire a git repo at poject creation
+- Skippy still uses some hard coded paths, like the projects path. Let's put some conf variables.
 
-
+## Project structure breakdown
+```
+docker_path # The path of your docker containers
+├── docker-compose.yml\ # Traefik's docker-compose file
+├── traefik\ 
+│   ├── certs\ # seflf signed certificate for HTTPS
+│   └── ... # Traefik'sconfiguration files
+├── shared\
+│   └── opcache.ini # used by all projects
+└── projects\ # Projects managed by Skippy
+    ├── appname1\
+    │   ├── docker-compose.yml
+    │   ├── .env
+    │   ├── .mutagen.yml # To adjust Mutagen's config as needed
+    │   ├── .gitignore
+    │   ├── .dev\ (optionnal, excluded in .gitignore anyway)
+    │   ├── www\ # The docroot. Mutagen syncs this folder.
+    │   └── db\ # Database files
+    └── appname2\
+        ├── docker-compose.yml
+        ├── .env
+        ├── .mutagen.yml
+        ├── .gitignore
+        ├── www\
+        └── db\
+```

@@ -1,0 +1,4 @@
+[GENERAL]
+debug=0
+dockerPath=C:\Users\You\Documents\skippy
+skippyPath=D:\docker\
