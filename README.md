@@ -33,7 +33,7 @@ Add Skippy to the environment variable. Please replace `<skippy_folder_path>` by
 ```
 Then set an alias to make skippy callable without having to specify `.ps1`
 ```bash
-Set-Alias -Name skippy -Value "E:\docker\skippy\skippy.ps1" # S
+Set-Alias -Name skippy -Value "<skippy_folder_path>\skippy.ps1" # S
 ```
 If the above command is not permitted because of script execution policy, run this command and retry
 ```bash
