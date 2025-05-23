@@ -331,15 +331,36 @@ function StopProject {
 
 }
 
-# Restarts a project
+# Restarts a project.
+# It will rebuild the image! Useful if env variables have changed. 
 function RestartProject {
     param(
         [Parameter(Mandatory=$true)]
         [string]$appName
     )
 
-    StopProject $appName
-    StartProject $appName
+    $projects = getAvailableProjects
+
+    if(-not $projects.ContainsKey($appName)) {
+        log "App $appName does not exists." 4
+    }
+
+    # We just ask for confirmation jic xD
+    $confirmation = ''
+    while((($confirmation -ne 'y') -and ($confirmation -ne 'n')) -and (($confirmation -ne 'yes') -and ($confirmation -ne 'no'))) {
+        $confirmation = Read-Host "Restarting will rebuild the image of $appName. Continue ? [y]es/[n]o"
+    }
+
+    if(($confirmation -eq 'y') -or ($confirmation -eq 'yes')) {
+
+        Push-Location (getProjectPath $appName)
+        docker compose down -v
+        docker compose up -d
+        Pop-Location
+
+    } else {
+        log 'Aborted.'
+    }
 
 }
 

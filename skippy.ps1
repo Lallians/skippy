@@ -24,10 +24,12 @@ foreach ($script in Get-ChildItem -Path $incPath -Filter "*.ps1" -File -Recurse)
     . $script.FullName
 }
 
-# TODO: Make sure docker is running. Skippy can not work if docker is off.
-#if () {
-#    throwError 1 "Docker is not running."
-#}
+# Run docker ps to list containers which will throw an error if docker is not running.
+# We capture the error output
+$docker_ps_output = docker ps 2>&1
+if ($docker_ps_output -match "error during connect") {
+    throwError 1 "Docker is not running."
+}
 
 
 # Parse remaining named args
