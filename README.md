@@ -8,7 +8,6 @@ Skippy is designed to work with the folowing:
 - Docker Desktop
 - Mutagen - required for speed and easier development by syncing files between the PC and Docker mounted volumes.
 - A running and configured Traefik image (to allow access to https://appName.docker.localhost). Certificates must be provided (self signed works) to allow HTTPS.
-- 
 
 ## Features
 - Manage your dev environements with `skippy project`
@@ -28,8 +27,7 @@ Skippy is designed to work with the folowing:
 Open a powershell and run the following commands making sure to replace the values for your case.
 First, download skippy and place it wherever you want, for example **C:\Users\You\Documents\skippy**
 
-Add Skippy to the environment variable
-Please replace `<skippy_folder_path>` by the absolute path where you placed your skippy folder eg: `C:\Users\You\Documents\skippy`
+Add Skippy to the environment variable. Please replace `<skippy_folder_path>` by the absolute path where you placed your skippy folder eg: `C:\Users\You\Documents\skippy`
 ```bash
   [Environment]::SetEnvironmentVariable("Path", $Env:Path + ";<skippy_folder_path>", "User") 
 ```
