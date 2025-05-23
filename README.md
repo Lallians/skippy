@@ -45,7 +45,7 @@ Now you need to configure Skippy. Edit the file `skippy.conf` located in Skippy'
 
 ## TODO
 - Allow management of project types by using yml configuration files
-- Auto-wire a git repo at poject creation
+- Auto-wire a git repo at project creation
 - Skippy still uses some hard coded paths, like the projects path. Let's put some conf variables.
 
 ## Project structure breakdown
