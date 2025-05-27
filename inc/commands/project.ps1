@@ -214,6 +214,10 @@ function CreateProject {
 
         # Don't forget to enable Mutagen for file synchronization
         startMutagenForProject $appNameNormalized
+
+        # set autostart to true so resume work after PC reboot for example
+        EnableAutoStart -appName $appName -silent $true
+        
     } else {
         # We build the project but we do not start mutagen
         # because we will probably start it using skippy project start 
@@ -230,7 +234,9 @@ function CreateProject {
 function DisableAutoStart {
     param(
         [Parameter(Mandatory=$true)]
-        [string]$appName
+        [string]$appName,
+        [Parameter(Mandatory=$false)]
+        [bool]$silent = $false,
     )
 
     # get list of container IDs related to the app
@@ -239,10 +245,14 @@ function DisableAutoStart {
     if($IDs.Count -gt 0) {
         foreach($id in $IDs) {
             docker update --restart=no $id > $null
-            log '✅ Auto start DISABLED'
+            if(-not $silent) {
+                log '✅ Auto start DISABLED'
+            }
         }
     } else {
-        log "No container found for app $appName" 4
+        if(-not $silent) {
+            log "No container found for app $appName" 4
+        }
     }
 
 }
@@ -250,7 +260,9 @@ function DisableAutoStart {
 function EnableAutoStart {
     param(
         [Parameter(Mandatory=$true)]
-        [string]$appName
+        [string]$appName,
+        [Parameter(Mandatory=$false)]
+        [bool]$silent = $false,
     )
 
     # get list of container IDs related to the app
@@ -259,10 +271,14 @@ function EnableAutoStart {
     if($IDs.Count -gt 0) {
         foreach($id in $IDs) {
             docker update --restart=always $id > $null
-            log '✅ Auto start ENABLED'
+            if(-not $silent) {
+                log '✅ Auto start ENABLED'
+            }
         }
     } else {
-        log "No container found for app $appName" 4
+        if(-not $silent) {
+            log "No container found for app $appName" 4
+        }
     }
     
 }
@@ -370,6 +386,9 @@ function StartProject {
     # Start file sync silently
     startMutagenForProject $appName > $null
 
+    # set autostart to true so resume work after PC reboot for example
+    EnableAutoStart -appName $appName -silent $true
+
 }
 
 # Essentially performs a docker compose stop on the project.
@@ -396,6 +415,9 @@ function StopProject {
 
     # Stop file sync silently
     stopMutagenForProject $appName > $null
+
+    # set autostart to false to prevent ressource usage
+    EnableAutoStart -appName $appName -silent $true 
 
 }
 
