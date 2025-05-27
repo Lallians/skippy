@@ -1,0 +1,83 @@
+services:
+  
+  back-coco:
+    build:
+      context: ./
+      dockerfile: Dockerfile_symfony
+    container_name: back-coco
+    restart: no
+    #volumes:
+      #- ./app/back:/var/www/html
+    networks:
+      - internal
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.back-coco.rule=Host(`back-coco.docker.localhost`)"
+      - "traefik.http.routers.back-coco.entrypoints=websecure"
+      - "traefik.http.routers.back-coco.tls=true"
+      - "traefik.http.services.back-coco.loadbalancer.server.port=80"
+      - "traefik.docker.network=web"
+
+  front-coco:
+    build: 
+      context: ./
+      dockerfile: Dockerfile_angular
+    container_name: front-coco
+    ports:
+      - '4200:4200'
+    #volumes:
+    #  - ./app/front:/coco-app
+    environment:
+      - STYLE=scss
+    networks:
+      - internal
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.front-coco.rule=Host(`front-coco.docker.localhost`)"
+      - "traefik.http.routers.front-coco.entrypoints=websecure"
+      - "traefik.http.routers.front-coco.tls=true"
+      - "traefik.http.services.front-coco.loadbalancer.server.port=4200"
+      - "traefik.docker.network=web"
+
+
+  db-coco:
+    image: mariadb:10.6
+    container_name: db-coco
+    restart: no
+    environment:
+      MYSQL_ROOT_PASSWORD: ${APP_DB_PASSWORD}  # À sécuriser dans .env plus tard
+      MYSQL_DATABASE: ${APP_DB_NAME}
+      MYSQL_USER: ${APP_DB_USER}
+      MYSQL_PASSWORD: ${APP_DB_PASSWORD}
+    volumes:
+      - ./db:/var/lib/mysql
+    networks:
+      - internal
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: pma-coco
+    restart: no
+    environment:
+      PMA_HOST: db-coco
+      PMA_USER: ${APP_DB_USER}
+      PMA_PASSWORD: ${APP_DB_PASSWORD}
+      UPLOAD_LIMIT: 300M
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pma-coco.rule=Host(`pma-coco.docker.localhost`)"
+      - "traefik.http.routers.pma-coco.entrypoints=websecure"
+      - "traefik.http.routers.pma-coco.tls=true"
+      - "traefik.http.services.pma-coco.loadbalancer.server.port=80"
+      - "traefik.docker.network=web"
+    networks:
+      - web
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+  web:
+    external: true

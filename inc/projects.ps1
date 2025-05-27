@@ -76,3 +76,49 @@ function getAvailableProjects {
     return $availableProjects
 
 }
+
+# Function that reads the header config in project's docker-compose.yml
+function getSkippySettingsForProject {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$appName
+    )
+
+    $projectPath = getProjectPath $appName
+    $filePath = Join-Path $projectPath 'docker-compose.yml'
+
+    # Check if file exists
+    if (-not (Test-Path $filePath)) {
+        throwError 1 "❌ Docker compose introuvable : $filePath"
+    }
+
+    # Lis le contenu complet du fichier
+    $lines = Get-Content $filePath
+
+    # Look for start and stop tags
+    $startIndex = $lines | Select-String -Pattern '#skippy-start-conf' | Select-Object -First 1
+    $endIndex = $lines | Select-String -Pattern '#skippy-end-conf' | Select-Object -First 1
+
+    if (-not $startIndex -or -not $endIndex) {
+        log "❌ Les balises de configuration Skippy sont absentes ou incomplètes." 2
+        return $null
+    }
+
+    # Get lines between start and stop tags
+    $configLines = $lines[($startIndex.LineNumber)..($endIndex.LineNumber - 1)]
+
+    # Initialise le dictionnaire
+    $config = @{}
+
+    # Parcours les lignes de configuration
+    foreach ($line in $configLines) {
+        # Ignore les lignes qui ne contiennent pas "="
+        if ($line -match '^#skippy-(\w+)\s*=\s*(.+)$') {
+            $key = $matches[1].Trim()
+            $value = $matches[2].Trim()
+            $config[$key] = $value
+        }
+    }
+
+    return $config
+}

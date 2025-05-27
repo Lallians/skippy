@@ -1,0 +1,1 @@
+The folder must be the the name of the platform.

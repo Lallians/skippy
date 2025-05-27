@@ -38,10 +38,9 @@ function normalizeAppName {
 # Used to check if a path we want to work on is in the allowed wordking directory.
 function assertInDirectory {
     param (
-        [string]$path,
-        [string]$allowedRoot
+        [string]$path
     )
-
+    $allowedRoot = getProjectsPath
     if (-not ($path -like "$allowedRoot*")) {
         throwError 1 "❌ Outside working dir! ($path)"
     }

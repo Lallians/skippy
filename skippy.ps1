@@ -47,8 +47,13 @@ switch ($Command) {
             'create' {
 
                 # Allows help display if "help" is only argument passed
-                if($parsedArgs.ContainsKey(0) -and $parsedArgs[0] -eq 'help') {
-                    displayHelp('project-create')
+                # If a string is passed without any other argument and is different to 'help', we assume this is the name of the project
+                if($parsedArgs.ContainsKey(0)) {
+                    if($parsedArgs[0] -eq 'help') {
+                        displayHelp('project-create')
+                    } else {
+                        $parsedArgs['appName'] = $parsedArgs[0]
+                    }
                 }
 
                 $fnArgs = @{

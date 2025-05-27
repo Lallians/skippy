@@ -1,4 +1,5 @@
-﻿function CreateProject {
+﻿# This function is responsible for the project creation.
+function CreateProject {
     param(
 
         [Parameter(Mandatory=$true)]
@@ -29,23 +30,35 @@
     
     )
 
+    # We normalize the app name since we will use it as identifier and we want it as simple as possible.
+    # For example, remove accents and special characters.
     $appNameNormalized = NormalizeAppName $appName
 
     if($appNameNormalized -ne $appName) {
         log "Your project is renamed from '$appName' to '$appNameNormalized' for better usage." 2
     }
 
+
+    # The goal is:
+    # to copy the base structure and files into the projects directory
+    # and then add dynamic files that contains the app's cstom parameters (dockerfiles...)
+
+
     # define variables
     $skippyPath = getConf 'skippyPath'
-    $templatePath = Join-Path $skippyPath 'templates'
+
+    $structPath = Join-Path $skippyPath 'struct'
+    $structPath_dockercomposes = Join-Path $structPath 'docker-compose'
+    $structPath_dockerfile = Join-Path $structPath 'dockerfile'
+    $structPath_projectStruct = Join-Path $structPath 'project_struct'
+    $structPath_conf = Join-Path $structPath 'conf'
+    $structPath_gitignore = Join-Path $structPath 'gitignore'
+
     $projectPath = getProjectPath $appNameNormalized
-    $wwwPath     = Join-Path $projectPath 'www'
-    $dbPath      = Join-Path $projectPath 'db'
-    $gitignoreFile = Join-Path $skippyPath 'gitignores\.gitignore-default'
+    $gitignoreFile = Join-Path $structPath_gitignore '.gitignore-default'
 
     # Check directories jic
-    assertInDirectory -path $projectPath -allowedRoot $allowedRoot
-    assertInDirectory -path $dbPath -allowedRoot $allowedRoot
+    assertInDirectory -path $projectPath
 
     # Prepare variables that are shared amongst all templates aswell as the .env file
     # The keys of $templateVars are the placeholders in the template
@@ -56,13 +69,21 @@
     $envVars = @{}
 
     
-    # We define the template we use according to the platform
+    # We define the template we use according to the platform and the variables according to user specifications.
+    # We also prepare the files we will write depending on the platform in $filesToWrite.
+    # $filesToWrite must contain items in the form of: 
+    # @{
+    #   'type' = 'content'|'file' # 'content' for outputting content (replacing placeholders), 'file' to copy a file from here to there
+    #   'origin' = $path_of_target_file
+    #   'value' = "$the_content_or_the_file_path"
+    # }
     # TODO: make other platforms!
+    $filesToWrite = @{}
     if($platform -eq 'wordpress') {
-        $templateFile = Join-Path $templatePath 'docker-compose-wordpress.yml'
-        $gitignoreFile = Join-Path $skippyPath 'gitignores\.gitignore-wordpress'
+        $dockercomposeTemplate = Join-Path $structPath_dockercomposes 'docker-compose-wordpress.yml'
+        $gitignoreFile = Join-Path $structPath_gitignore '.gitignore-wordpress'
 
-        # on met en place des valeurs générées si non définies pas l'utilisateur
+        # Set up random values if user did not define any
         if($db_user -eq "") {
             $db_user = $appNameNormalized
         }
@@ -82,31 +103,47 @@
         $envVars['APP_DB_TABLE_PREFIX'] = $db_table_prefix
     
     #} elseif($platform -eq 'prestashop') {
-    #    $templateFile = "$templatePath\docker-compose-template-prestashop.yml"
-    #} elseif($platform -eq 'symfony-react') {
-    #    $templateFile = "$templatePath\docker-compose-template-sf-react.yml"
+    #    $dockercomposeTemplate = "$structPath\docker-compose-template-prestashop.yml"
+    } elseif($platform -eq 'symfony-angular') {
+        $dockercomposeTemplate = Join-Path $structPath_dockercomposes 'docker-compose-sfng.yml'
+
+        # Set up random values if user did not define any
+        if($db_user -eq "") {
+            $db_user = $appNameNormalized
+        }
+        if($db_password -eq "") {
+            $db_password = generatePassword
+        }
+        if($db_name -eq "") {
+            $db_name =  $db_user
+        }
+
+        $envVars['APP_DB_USER'] = $db_user
+        $envVars['APP_DB_PASSWORD'] = $db_password
+        $envVars['APP_DB_NAME'] = $db_name
+
     } else {
         echo $exits[4] $platform
         exit 4
     }
     
     # Check if template exists jic
-    if (-not (Test-Path $templateFile)) {
-        throwError 3 "$($exits[3]) $templateFile"
+    if (-not (Test-Path $dockercomposeTemplate)) {
+        throwError 3 "$($exits[3]) $dockercomposeTemplate"
     }
     
     # Replace placeholders with actual values
-    $templateContent = Get-Content $templateFile -Raw
+    $dockercomposeContent = Get-Content $dockercomposeTemplate -Raw
     foreach ($key in $templateVars.Keys) {
-        $templateContent = $templateContent -replace $key, $templateVars[$key]
+        $dockercomposeContent = $dockercomposeContent -replace $key, $templateVars[$key]
     }
     
     # Don't forget the mutagen conf file and replace placeholders
-    $mutagenTemplateFile   = Join-Path $templatePath "mutagen.yml"
-    $mutagenFileContent = Get-Content $mutagenTemplateFile -Raw
-    foreach ($key in $templateVars.Keys) {
-        $mutagenFileContent = $mutagenFileContent -replace $key, $templateVars[$key]
-    }
+    #$mutagenTemplate   = Join-Path $structPath_conf "mutagen.yml"
+    #$mutagenFileContent = Get-Content $mutagenTemplate -Raw
+    #foreach ($key in $templateVars.Keys) {
+    #    $mutagenFileContent = $mutagenFileContent -replace $key, $templateVars[$key]
+    #}
 
     # Format .env file
     $envFileContent = ""
@@ -115,27 +152,54 @@
     }
     
     # Last check to abort if the project exists or there are leftovers from old project
-    if (Test-Path $wwwPath) {
-        throwError 5
-    } elseif(Test-Path $dbPath) {
+    if (Test-Path $projectPath) {
         throwError 5
     }
     
-    # Create folders
-    New-Item -ItemType Directory -Force -Path $wwwPath | Out-Null
-    New-Item -ItemType Directory -Force -Path $dbPath | Out-Null
+
+    # Prepare the common files to write
+    $filesToWrite.Add($filesToWrite.Count, @{
+        'type' = 'content'
+        'target' = Join-Path $projectPath 'docker-compose.yml'
+        'value' = $dockercomposeContent 
+    })
+    $filesToWrite.Add($filesToWrite.Count, @{
+        'type' = 'content'
+        'target' = Join-Path $projectPath '.env'
+        'value' = $envFileContent
+    })
+    $filesToWrite.add($filesToWrite.Count, @{
+        'type' = 'file'
+        'target' = Join-Path $projectPath 'mutagen.yml'
+        'value' = Join-Path $structPath_conf 'mutagen.yml'
+    })
+
+
+    # Create base project structure
+    Copy-Item -Recurse (Join-Path $structPath_projectStruct $platform) $projectPath # base structure
     
-    # Check if folders was created successfully
-    if (-not (Test-Path $wwwPath) -or -not (Test-Path $dbPath)) {
+    # Check if directory was created successfully
+    if (-not (Test-Path $projectPath)) {
         throwError 2
     }
     
-    # Write files docker-compose.yml and .env
-    $templateContent | Out-File -Encoding UTF8 -FilePath (Join-Path $projectPath "docker-compose.yml")
-    $mutagenFileContent | Out-File -Encoding UTF8 -FilePath (Join-Path $projectPath "mutagen.yml")
-    $envFileContent | Out-File -Encoding UTF8 -FilePath (Join-Path $projectPath '.env')
-    cat $gitignoreFile | Out-File -Encoding UTF8 -FilePath (Join-Path $projectPath '.gitignore')
-    
+    # Write project files
+    foreach ($fileToWrite in $filesToWrite.Values) {
+        if($fileToWrite['type'] -eq 'content') {
+            $fileToWrite['value'] | Out-File -Encoding UTF8 -FilePath $fileToWrite['target']
+        } elseif($fileToWrite['type'] -eq 'file') {
+            Copy-Item $fileToWrite['value'] $fileToWrite['target']
+        } else {
+            throwError 1 "Unkown file type operation: $($fileToWrite['type'])" 
+        }
+    }
+
+    # Also write conf files that are inherent to the platform
+    $inherentConfPath = Join-Path $structPath_conf $platform  
+    foreach ($confFile in Get-ChildItem -Path ($inherentConfPath) -File) {
+        Copy-Item (Join-Path $inherentConfPath $confFile.Name) (Join-Path $projectPath $confFile.Name)
+    }
+
     $message = "Project '$appNameNormalized' successfully created in: $projectPath"
 
     Push-Location $projectPath
@@ -143,6 +207,10 @@
         docker compose up -d
         $message = "$message - Container started."
         $message = "$message`n Accessible to https://$appName.docker.localhost"
+
+        if($platform -eq 'symfony-angular') {
+            log 'front can take a while to be up while node modules is getting set up!' 2
+        }
 
         # Don't forget to enable Mutagen for file synchronization
         startMutagenForProject $appNameNormalized

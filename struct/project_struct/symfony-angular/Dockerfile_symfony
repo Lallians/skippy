@@ -1,0 +1,48 @@
+FROM php:8.4-apache
+
+# Set Apache configuration
+COPY conf/vhost.conf /etc/apache2/sites-available/000-default.conf
+COPY conf/apache.conf /etc/apache2/conf-available/docker-php.conf
+RUN a2enconf docker-php
+
+WORKDIR /var/www/html
+
+#enable app
+RUN a2enmod rewrite
+
+# Install necessary packages
+RUN apt-get update && apt-get install -y \
+    nano \
+    acl \
+    file \
+    gettext-base \
+    git \
+    zip \
+    unzip \
+    libzip-dev \
+    git \
+    wget \
+    unzip
+
+# install php extensions
+RUN docker-php-ext-install pdo mysqli pdo_mysql zip opcache;
+COPY conf/php.ini /usr/local/etc/php/conf.d/app.ini
+
+# Install Composer
+RUN wget https://getcomposer.org/download/2.8.9/composer.phar \
+    && mv composer.phar /usr/bin/composer && chmod +x /usr/bin/composer
+
+
+# Install Symfony CLI
+RUN wget https://get.symfony.com/cli/installer -O - | bash
+RUN mv "${HOME}/.symfony5/bin/symfony" /usr/local/bin/symfony
+
+# setup app files
+RUN symfony new /var/www/html --version="7.2.x" --webapp --no-git
+
+
+# Start apache in foreground to prevent container from closing
+CMD ["apache2-foreground"]
+
+# Set env variables
+# ...
