@@ -58,7 +58,7 @@ docker_path # The path of your docker containers
 ├── shared\
 │   └── opcache.ini # used by all projects
 └── projects\ # Projects managed by Skippy
-    ├── appname1\
+    ├── wordpress-app\
     │   ├── docker-compose.yml
     │   ├── .env
     │   ├── .mutagen.yml # To adjust Mutagen's config as needed
@@ -66,11 +66,15 @@ docker_path # The path of your docker containers
     │   ├── .dev\ (optionnal, excluded in .gitignore anyway)
     │   ├── www\ # The docroot. Mutagen syncs this folder.
     │   └── db\ # Database files
-    └── appname2\
+    └── symfony-angular-app\
         ├── docker-compose.yml
         ├── .env
         ├── .mutagen.yml
         ├── .gitignore
-        ├── www\
+        ├── app\
+        │   ├── back\ # symfony
+        │   └── front\ # angular
+        ├── conf\
+        │   └── ... # static conf files for apache, php...
         └── db\
 ```
