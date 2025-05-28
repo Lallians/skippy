@@ -8,26 +8,32 @@ function parseArguments {
     $parsed = @{}
     for ($i = 0; $i -lt $RemainingArgs.Count; $i++) {
 
-        # If the tested string starts with '-', we know we want to assign a value with a key named after the stirng.
+        # If the tested string starts with '-', we want to:
+        # - read the next string which is the value of the key we are reading
+        # - if there is nothing after the key or a string starting with '-', it means the key is a flag that is implicitely true
         if ($RemainingArgs[$i] -like "-*") {
             $key = $RemainingArgs[$i].TrimStart("-")
 
             # We check if the following string does not start with '-', which mean the user provided a value
             # if no value is provided, we assume the parameter is a flag, ie a boolean set to true
-            if ($i + 1 -lt $RemainingArgs.Count) {
-                # there is indeed a following string
-
+            if ($i + 1 -ge $RemainingArgs.Count) {
+                # there is no value after the key we are checking, thus it is a flag
+                $value = $true
+            } else {
+                # there is indeed a following string, we assign the value
                 # we check whether it is a value for our parameter or a flag
-                if($RemainingArgs[$i + 1] -notlike "-*") {
-                    $i++; # increment so that we check the next parameter
-                    $value = $RemainingArgs[$i]
-                } else {
+                if($RemainingArgs[$i + 1] -like "-*") {
+                    # the next string is a parameter, it means we are checking a flag and there is no value assigned: we set to true
                     $value = $true
+                } else {
+                    # the next string is a value, we assign it
+                    $i++ # and we increasi $i because we want to chec kthe next parameter, not the value to assign :)
+                    $value = $RemainingArgs[$i]
                 }
-
             }
-            
+       
             $parsed[$key] = $value
+            
         } else {
 
             # the argument was not named, so we just fill with whatever value was passed
@@ -61,7 +67,7 @@ function getArgsFormatted {
             $paramsFormatted[$theKey] = $parsedArgs[$theKey]
         }
     }
-    
+
     # Join the parameters into a string: -param1 'value1' -param2 'value2'
     $argString = ($paramsFormatted.GetEnumerator() | ForEach-Object {
         # no quotes for bool values

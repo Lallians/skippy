@@ -1,6 +1,8 @@
 # This section is metadata for Skippy - do NOT delete it
 #skippy-start-conf
 #platform=symfony-angular
+#mutagensync=app/back:back-{{APPNAME_NORMALIZED}}/var/html/public,app/front:front-{{APPNAME_NORMALIZED}}/{{APPNAME_NORMALIZED}}
+#mutagenargs=default-file-mode-beta:0644,default-directory-mode-beta:0755
 #skippy-end-conf
 
 services:

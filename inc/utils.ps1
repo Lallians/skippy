@@ -148,7 +148,30 @@ function log {
 
 }
 
+# A function that reads a file, replaces the placeholders by their values and returns the formatted content
+function assignVarsInTemplate {
 
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$templatePath,
 
+        [Parameter(Mandatory = $true)]
+        [hashtable]$keyValues
+    )
+
+    $templateContent = Get-Content $templatePath -Raw
+
+    if($keyValues.Count -eq 0) {
+        log 'Cannot replace placeholders - the hashtable contains nothing' 2
+        return $templateContent
+    }
+
+    foreach ($key in $keyValues.Keys) {
+        $templateContent = $templateContent -replace $key, $keyValues[$key]
+    }
+
+    return $templateContent
+
+}
 
 

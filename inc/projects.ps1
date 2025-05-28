@@ -89,10 +89,10 @@ function getSkippySettingsForProject {
 
     # Check if file exists
     if (-not (Test-Path $filePath)) {
-        throwError 1 "❌ Docker compose introuvable : $filePath"
+        throwError 1 "❌ Docker compose not found : $filePath"
     }
 
-    # Lis le contenu complet du fichier
+    # Reads the file
     $lines = Get-Content $filePath
 
     # Look for start and stop tags
@@ -100,20 +100,20 @@ function getSkippySettingsForProject {
     $endIndex = $lines | Select-String -Pattern '#skippy-end-conf' | Select-Object -First 1
 
     if (-not $startIndex -or -not $endIndex) {
-        log "❌ Les balises de configuration Skippy sont absentes ou incomplètes." 2
+        log "❌ Skippy conf headers are missing or incomplete." 2
         return $null
     }
 
     # Get lines between start and stop tags
     $configLines = $lines[($startIndex.LineNumber)..($endIndex.LineNumber - 1)]
 
-    # Initialise le dictionnaire
+    # Initialise the hashtable
     $config = @{}
 
-    # Parcours les lignes de configuration
+    # Read the configuration lines ont by one
     foreach ($line in $configLines) {
-        # Ignore les lignes qui ne contiennent pas "="
-        if ($line -match '^#skippy-(\w+)\s*=\s*(.+)$') {
+        # Ignore lines without "="
+        if ($line -match '^#(\w+)\s*=\s*(.+)$') {
             $key = $matches[1].Trim()
             $value = $matches[2].Trim()
             $config[$key] = $value

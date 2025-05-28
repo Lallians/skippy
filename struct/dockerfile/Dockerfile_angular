@@ -1,11 +1,10 @@
-FROM node:21
+﻿FROM node:21
 
 RUN npm install -g @angular/cli
 
 WORKDIR /
-#RUN mkdir coco-app
 
-ENV APP_NAME 'coco'
+ENV APP_NAME '{{APPNAME_NORMALIZED}}'
 ENV ROUTING 'true'
 ENV STANDALONE 'false'
 ENV STRICT 'true'
@@ -19,10 +18,4 @@ CMD ng new $APP_NAME --routing=$ROUTING --standalone=$STANDALONE --strict=$STRIC
 WORKDIR /
 
 EXPOSE 4200
-
-
-
-
-
-
 

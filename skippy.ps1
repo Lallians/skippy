@@ -47,7 +47,7 @@ switch ($Command) {
             'create' {
 
                 # Allows help display if "help" is only argument passed
-                # If a string is passed without any other argument and is different to 'help', we assume this is the name of the project
+                # If a string is passed and is different to 'help', we assume this is the name of the project
                 if($parsedArgs.ContainsKey(0)) {
                     if($parsedArgs[0] -eq 'help') {
                         displayHelp('project-create')
@@ -65,6 +65,7 @@ switch ($Command) {
                     'db_name' = ''
                     'db_table_prefix' = ''
                     'startAfterCreation' = $true
+                    'nobuild' = $false
                 }
                 $argString = getArgsFormatted $fnArgs $parsedArgs
 

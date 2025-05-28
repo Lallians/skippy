@@ -6,12 +6,16 @@ function CreateProject {
         [string]$appName,
 
         [Parameter(Mandatory=$true)]
-        [ValidateSet("wordpress", "prestashop", "symfony-react")]
+        [ValidateSet(
+            "wordpress", "wp", 
+            "prestashop", 
+            "symfony-angular", "sfng"
+        )]
         [string]$platform,
     
         [Parameter(Mandatory=$false)]
         [ValidateSet("8.2", "8.3", "8.4")]
-        [string]$phpVersion = "8.2",
+        [string]$phpVersion = "8.4",
     
         [Parameter(Mandatory=$false)]
         [string]$db_password = "",
@@ -26,9 +30,29 @@ function CreateProject {
         [string]$db_table_prefix = "",
 
         [Parameter(Mandatory=$false)]
-        [bool]$startAfterCreation = $true
+        [bool]$startAfterCreation = $true,
+
+        [Parameter(Mandatory=$false)]
+        [bool]$noBuild = $false
     
     )
+
+
+    # startAfterCreation and nobuild are not compatible.
+    # if nobuild is set to true, we will set startAftercreation to false and vice versa.
+    if($noBuild) {
+        $startAfterCreation = $false
+    }
+    if($startAfterCreation) {
+        $noBuild = $false
+    }
+
+    # We allow some aliases
+    if($platform -eq 'sfng') {
+        $platform = 'symfony-angular'
+    } elseif($platform -eq 'wp') {
+        $platform = 'wordpress'
+    }
 
     # We normalize the app name since we will use it as identifier and we want it as simple as possible.
     # For example, remove accents and special characters.
@@ -60,6 +84,11 @@ function CreateProject {
     # Check directories jic
     assertInDirectory -path $projectPath
 
+    # And check if the project exists or there are leftovers from old project
+    if (Test-Path $projectPath) {
+        throwError 5 # Abort
+    }
+
     # Prepare variables that are shared amongst all templates aswell as the .env file
     # The keys of $templateVars are the placeholders in the template
     $templateVars = @{
@@ -80,6 +109,7 @@ function CreateProject {
     # TODO: make other platforms!
     $filesToWrite = @{}
     if($platform -eq 'wordpress') {
+
         $dockercomposeTemplate = Join-Path $structPath_dockercomposes 'docker-compose-wordpress.yml'
         $gitignoreFile = Join-Path $structPath_gitignore '.gitignore-wordpress'
 
@@ -105,6 +135,7 @@ function CreateProject {
     #} elseif($platform -eq 'prestashop') {
     #    $dockercomposeTemplate = "$structPath\docker-compose-template-prestashop.yml"
     } elseif($platform -eq 'symfony-angular') {
+
         $dockercomposeTemplate = Join-Path $structPath_dockercomposes 'docker-compose-sfng.yml'
 
         # Set up random values if user did not define any
@@ -122,6 +153,20 @@ function CreateProject {
         $envVars['APP_DB_PASSWORD'] = $db_password
         $envVars['APP_DB_NAME'] = $db_name
 
+        # We will copy the dockerfiles
+        $filesToWrite.Add($filesToWrite.Count, @{
+            'type' = 'content'
+            'target' = Join-Path $projectPath 'Dockerfile_symfony'
+            'value' = assignVarsInTemplate (Join-Path $structPath_dockerfile 'Dockerfile_symfony') $templateVars
+        })
+        $filesToWrite.Add($filesToWrite.Count, @{
+            'type' = 'content'
+            'target' = Join-Path $projectPath 'Dockerfile_angular'
+            'value' = assignVarsInTemplate (Join-Path $structPath_dockerfile 'Dockerfile_angular') $templateVars
+        })
+
+        echo $filesToWrite.Values
+
     } else {
         echo $exits[4] $platform
         exit 4
@@ -133,27 +178,13 @@ function CreateProject {
     }
     
     # Replace placeholders with actual values
-    $dockercomposeContent = Get-Content $dockercomposeTemplate -Raw
-    foreach ($key in $templateVars.Keys) {
-        $dockercomposeContent = $dockercomposeContent -replace $key, $templateVars[$key]
-    }
-    
-    # Don't forget the mutagen conf file and replace placeholders
-    #$mutagenTemplate   = Join-Path $structPath_conf "mutagen.yml"
-    #$mutagenFileContent = Get-Content $mutagenTemplate -Raw
-    #foreach ($key in $templateVars.Keys) {
-    #    $mutagenFileContent = $mutagenFileContent -replace $key, $templateVars[$key]
-    #}
+    $dockercomposeContent = assignVarsInTemplate $dockercomposeTemplate $templateVars
 
     # Format .env file
+    # Todo: handle bool / numeric values ?
     $envFileContent = ""
     foreach ($key in $envVars.Keys) {
         $envFileContent += $key + "='" + $envVars[$key] + "'" + "`n"
-    }
-    
-    # Last check to abort if the project exists or there are leftovers from old project
-    if (Test-Path $projectPath) {
-        throwError 5
     }
     
 
@@ -195,10 +226,10 @@ function CreateProject {
     }
 
     # Also write conf files that are inherent to the platform
-    $inherentConfPath = Join-Path $structPath_conf $platform  
-    foreach ($confFile in Get-ChildItem -Path ($inherentConfPath) -File) {
-        Copy-Item (Join-Path $inherentConfPath $confFile.Name) (Join-Path $projectPath $confFile.Name)
-    }
+    #$inherentConfPath = Join-Path $structPath_conf $platform  
+    #foreach ($confFile in Get-ChildItem -Path ($inherentConfPath) -File) {
+    #    Copy-Item (Join-Path $inherentConfPath $confFile.Name) (Join-Path $projectPath $confFile.Name)
+    #}
 
     $message = "Project '$appNameNormalized' successfully created in: $projectPath"
 
@@ -221,8 +252,10 @@ function CreateProject {
     } else {
         # We build the project but we do not start mutagen
         # because we will probably start it using skippy project start 
-        docker compose create
-        $message = "$message - Container created."
+        if(-not $noBuild) {
+            docker compose create
+            $message = "$message - Container created."
+        }
     }
     Pop-Location
 
@@ -236,7 +269,7 @@ function DisableAutoStart {
         [Parameter(Mandatory=$true)]
         [string]$appName,
         [Parameter(Mandatory=$false)]
-        [bool]$silent = $false,
+        [bool]$silent = $false
     )
 
     # get list of container IDs related to the app
@@ -262,7 +295,7 @@ function EnableAutoStart {
         [Parameter(Mandatory=$true)]
         [string]$appName,
         [Parameter(Mandatory=$false)]
-        [bool]$silent = $false,
+        [bool]$silent = $false
     )
 
     # get list of container IDs related to the app
@@ -466,20 +499,63 @@ function startMutagenForProject {
     )
 
     $projectPath = getProjectPath $appName
-    $wwwPath = Join-Path $projectPath 'www'
+
+    if(-not (Test-Path $projectPath)) {
+        throwError 1 "App $appName does not exists"
+    }
+
+    # We read the headers in the docker compose which contains the list of pathes to sync
+    $projectConf = getSkippySettingsForProject $appName
+
+    if(-not ($projectConf.ContainsKey('mutagensync'))) {
+        throwError 1 'Can not enable Mutagen for project - missing mutagensync in headers'
+    }
 
     # File is stored in project's dir
-    $mutagenConfFile = Join-Path $projectPath mutagen.yml
-
     # If it does not exists, we just start the session without it
+    $mutagenConfFile = Join-Path $projectPath mutagen.yml
     $confFileArg = ''
     if(Test-Path $mutagenConfFile) {
         $confFileArg = "--configuration-file=$mutagenConfFile"
     }
 
-    # We need to specify the default owneship because mutagen sets it to root otherwise which breaks the app
-    Invoke-Expression "mutagen sync create $wwwPath docker://container-$appName/var/www/html --name=$appName-www --default-file-mode-beta=0644 --default-directory-mode-beta=0755 --default-owner-beta=www-data --default-group-beta=www-data $confFileArg"
+    # We prepare the additional arguments for the mutagen session such as default user, default group...
+    $additional_args = ''
+    if($projectConf.ContainsKey('mutagenargs')) {
+        $adtl_args = $projectConf['mutagenargs']-split ','
+        if($adtl_args.Count -gt 0) {
+            foreach($adtl_arg in $adtl_args) {
+                $split_arg = $adtl_arg -split ':'
+                if($split_arg.Count -ne 2) {
+                    log "Argument $adtl_arg is wrongly formatted and thus it has been ignored" 2
+                    continue
+                }
+                $adtl_arg_key = $split_arg[0]
+                $adtl_arg_val = $split_arg[1]
+    
+                $additional_args = "$additional_args --$adtl_arg_key=$adtl_arg_val "
+    
+            }
+        }
+        
+    }
 
+    $pathes = $projectConf['mutagensync'] -split ','
+    foreach($path in $pathes) {
+        $split_path = $path -split ':'
+        if($split_path.Count -ne 2) {
+            throwError 1 'Can not enable Mutagen for project - pathes are wrongly formatted'
+        }
+
+        $local = Join-Path $projectPath $split_path[0]
+        $remote = $split_path[1]
+        $identifier = Split-Path $local -Leaf # we use out local folder name as identifier for mutagen sync session name (warning: folders with same name will induce conflicts!)
+        
+        Invoke-Expression "mutagen sync create $local docker://$remote --name=$appName-$identifier $additional_args $confFileArg"
+
+    }
+
+    
 }
 
 # Removes the mutagen sync session for the given project
@@ -489,6 +565,32 @@ function stopMutagenForProject {
         [string]$appName
     )
 
-    Invoke-Expression "mutagen sync terminate $appName-www"
+    $projectPath = getProjectPath $appName
+
+    if(-not (Test-Path $projectPath)) {
+        throwError 1 "App $appName does not exists"
+    }
+
+    # We read the headers in the docker compose which contains the list of pathes to sync
+    $projectConf = getSkippySettingsForProject $appName
+
+    if(-not ($projectConf.ContainsKey('mutagensync'))) {
+        throwError 1 'Can not disable Mutagen for project - missing mutagensync in headers'
+    }
+
+    $pathes = $projectConf['mutagensync'] -split ','
+    foreach($path in $pathes) {
+        $split_path = $path -split ':'
+        if($split_path.Count -ne 2) {
+            throwError 1 'Can not disable Mutagen for project - pathes are wrongly formatted'
+        }
+
+        $identifier = Split-Path (Join-Path $projectPath $split_path[0]) -Leaf # we use out local folder name as identifier for mutagen sync session name
+
+        Invoke-Expression "mutagen sync terminate $appName-$identifier"
+
+    }
+
+    #Invoke-Expression "mutagen sync terminate $appName-www"
 
 }
