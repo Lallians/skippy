@@ -5,7 +5,7 @@ function CreateProject {
         [Parameter(Mandatory=$true)]
         [string]$appName,
 
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory=$true, HelpMessage="One of: wordpress, prestashop, symfony-angular")]
         [ValidateSet(
             "wordpress", "wp", 
             "prestashop", 
@@ -237,7 +237,18 @@ function CreateProject {
     if($startAfterCreation) {
         docker compose up -d
         $message = "$message - Container started."
-        $message = "$message`n Accessible to https://$appName.docker.localhost"
+        
+        switch($platform) {
+            'wordpress' {
+                $message = "$message`n Accessible to https://$appName.docker.localhost"
+            }
+            'prestashop' {
+
+            }
+            'symfony-angular' {
+                $message = "$message`n Front is accessible at https://front-$appName.docker.localhost`nBack is accessible at https://back-$appName.docker.localhost"
+            }
+        }
 
         if($platform -eq 'symfony-angular') {
             log 'front can take a while to be up while node modules is getting set up!' 2
@@ -413,7 +424,7 @@ function StartProject {
     }
 
     Push-Location (getProjectPath $appName)
-    docker compose start
+    docker compose up -d
     Pop-Location
     
     # Start file sync silently

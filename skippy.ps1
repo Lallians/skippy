@@ -40,6 +40,14 @@ switch ($Command) {
 
     # PROJECT Section
     "project" {
+
+        # If a string is passed and is different to 'help', we assume this is the name of the project
+        if($parsedArgs.ContainsKey(0)) {
+            if($parsedArgs[0] -ne 'help') {
+                $parsedArgs['appName'] = $parsedArgs[0]
+            }
+        }
+
         switch ($Subcommand) {
             'list' {
                 showAvailableProjects
@@ -47,12 +55,9 @@ switch ($Command) {
             'create' {
 
                 # Allows help display if "help" is only argument passed
-                # If a string is passed and is different to 'help', we assume this is the name of the project
                 if($parsedArgs.ContainsKey(0)) {
                     if($parsedArgs[0] -eq 'help') {
                         displayHelp('project-create')
-                    } else {
-                        $parsedArgs['appName'] = $parsedArgs[0]
                     }
                 }
 
@@ -73,57 +78,57 @@ switch ($Command) {
 
             }
             'disableAutoStart' {
-                if($parsedArgs[0]) {
-                    DisableAutoStart -appName $parsedArgs[0]
+                if($parsedArgs['appName']) {
+                    DisableAutoStart -appName $parsedArgs['appName']
                 } else {
                     DisableAutoStart
                 }
             }
             'enableAutoStart' {
-                if($parsedArgs[0]) {
-                    EnableAutoStart -appName $parsedArgs[0]
+                if($parsedArgs['appName']) {
+                    EnableAutoStart -appName $parsedArgs['appName']
                 } else {
                     EnableAutoStart
                 }
             }
             'remove' {
-                if($parsedArgs[0]) {
-                    RemoveProject -appName $parsedArgs[0]
+                if($parsedArgs['appName']) {
+                    RemoveProject -appName $parsedArgs['appName']
                 } else {
                     RemoveProject
                 }
             }
             'start' {
-                if($parsedArgs[0]) {
-                    StartProject -appName $parsedArgs[0]
+                if($parsedArgs['appName']) {
+                    StartProject -appName $parsedArgs['appName']
                 } else {
                     StartProject
                 }
             }
             'stop' {
-                if($parsedArgs[0]) {
-                    StopProject -appName $parsedArgs[0]
+                if($parsedArgs['appName']) {
+                    StopProject -appName $parsedArgs['appName']
                 } else {
                     StopProject
                 }
             }
             'restart' {
-                if($parsedArgs[0]) {
-                    RestartProject -appName $parsedArgs[0]
+                if($parsedArgs['appName']) {
+                    RestartProject -appName $parsedArgs['appName']
                 } else {
                     RestartProject
                 }
             }
             'startMutagen' {
-                if($parsedArgs[0]) {
-                    startMutagenForProject -appName $parsedArgs[0]
+                if($parsedArgs['appName']) {
+                    startMutagenForProject -appName 'appName'parsedArgs[0]
                 } else {
                     startMutagenForProject
                 }
             }
             'stopMutagen' {
-                if($parsedArgs[0]) {
-                    stopMutagenForProject -appName $parsedArgs[0]
+                if($parsedArgs['appName']) {
+                    stopMutagenForProject -appName 'appName'parsedArgs[0]
                 } else {
                     stopMutagenForProject
                 }
