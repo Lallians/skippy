@@ -253,7 +253,7 @@ function CreateProject {
         # We build the project but we do not start mutagen
         # because we will probably start it using skippy project start 
         if(-not $noBuild) {
-            docker compose create
+            docker compose up --no-start
             $message = "$message - Container created."
         }
     }
