@@ -5,7 +5,7 @@ Note that skippy is a personnal project and it is designed for my usage. I do no
 ## Prerequisites
 Skippy is designed to work with the folowing:
 - Windows with PowerShell v5.1
-- Docker Desktop
+- Docker Desktop for Windows
 - Mutagen - required for speed and easier development by syncing files between the PC and Docker mounted volumes.
 - A running and configured Traefik image (to allow access to https://appName.docker.localhost). Certificates must be provided (self signed works) to allow HTTPS.
 
@@ -22,6 +22,8 @@ Skippy is designed to work with the folowing:
 
 ## Environments available
 - Wordpress website with Apache, MariaDB and MySQL and PHP (supports versions 8.2 to 8.4).
+- Symfony + Angular app
+- Prestashop app
 
 ## Install Skippy
 Open a powershell and run the following commands making sure to replace the values for your case.
