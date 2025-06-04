@@ -48,6 +48,10 @@ Now you need to configure Skippy. Edit the file `skippy.conf` located in Skippy'
 - Auto-wire a git repo at project creation
 - Skippy still uses some hard coded paths, like the projects path. Let's put some conf variables.
 
+## Known quirks
+- At project initialization, Mutagen has to sync the files from container to the host machine: this process takes time.
+- When something breaks, Skippy will continue its duty and might perform unwanted actions: we must perform some checks here and there to prevent that.
+
 ## Project structure breakdown
 ```
 docker_path # The path of your docker containers
@@ -60,13 +64,24 @@ docker_path # The path of your docker containers
 └── projects\ # Projects managed by Skippy
     ├── wordpress-app\
     │   ├── docker-compose.yml
+    │   ├── .env # Project credentials
+    │   ├── .mutagen.yml # To adjust Mutagen's config as needed
+    │   ├── .gitignore
+    │   ├── .dev\ (optionnal, excluded in .gitignore anyway)
+    │   ├── conf\ 
+    │   │   └── ... # static conf files for Mutagen, apache, php or other container-related apps...
+    │   ├── www\ # The docroot. Mutagen syncs this folder.
+    │   └── db\ # Database files
+    ├── wordpress-app\
+    │   ├── docker-compose.yml
     │   ├── .env
     │   ├── .mutagen.yml # To adjust Mutagen's config as needed
     │   ├── .gitignore
     │   ├── .dev\ (optionnal, excluded in .gitignore anyway)
+    │   ├── conf\
     │   ├── www\ # The docroot. Mutagen syncs this folder.
     │   └── db\ # Database files
-    └── symfony-angular-app\
+    └── prestashop-app\
         ├── docker-compose.yml
         ├── .env
         ├── .mutagen.yml
@@ -75,6 +90,5 @@ docker_path # The path of your docker containers
         │   ├── back\ # symfony
         │   └── front\ # angular
         ├── conf\
-        │   └── ... # static conf files for apache, php...
         └── db\
 ```

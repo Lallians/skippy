@@ -1,0 +1,93 @@
+﻿FROM php:{{PHP_VERSION}}-apache
+
+# App env variables
+ARG APP_DOMAIN='psdemo.localhost'
+ENV APP_DOMAIN=$APP_DOMAIN
+
+ARG DB_SERVER='localhost'
+ENV DB_SERVER=$DB_SERVER
+
+ARG DB_NAME='prestashop'
+ENV DB_NAME=$DB_NAME
+
+ARG DB_USER='root'
+ENV DB_USER=$DB_USER
+
+ARG DB_PASSWD=''
+ENV DB_PASSWD=$DB_PASSWD
+
+ARG DB_PREFIX='ps_'
+ENV DB_PREFIX=$DB_PREFIX
+
+ARG BO_ADMIN_PASSWD='admin123'
+ENV BO_ADMIN_PASSWD=$BO_ADMIN_PASSWD
+
+ARG APP_NAME='newApp'
+ENV APP_NAME=$APP_NAME
+
+# Set Apache configuration
+COPY conf/vhost.conf /etc/apache2/sites-available/000-default.conf
+COPY conf/apache.conf /etc/apache2/conf-available/docker-php.conf
+RUN a2enconf docker-php
+
+WORKDIR /var/www/html
+
+#enable app
+RUN a2enmod rewrite
+RUN a2enmod headers
+
+# Install necessary packages
+RUN apt-get update && apt-get install -y \
+    iputils-ping \ 
+    default-mysql-client \ 
+    nano \
+    acl \
+    file \
+    gettext-base \
+    git \
+    zip \
+    unzip \
+    libzip-dev \
+    git \
+    wget \
+    unzip \
+    libfreetype6-dev \
+    libjpeg62-turbo-dev \
+    libpng-dev \
+    libjpeg-dev \
+    libicu-dev \
+    libmagickwand-dev \
+    libmagickcore-dev
+
+# install imagick
+RUN pecl install imagick 
+
+# install php extensions
+RUN docker-php-ext-configure gd --with-jpeg --with-freetype
+RUN docker-php-ext-install pdo intl gd bcmath mysqli pdo_mysql zip opcache;
+RUN docker-php-ext-enable imagick
+COPY conf/php.ini /usr/local/etc/php/conf.d/app.ini
+
+# Make sure the directory is empty
+RUN rm -rf /var/www/html/*
+
+# Download prestashop
+RUN curl "https://assets.prestashop3.com/dst/edition/corporate/{{PS_VERSION}}.0/prestashop_edition_classic_version_{{PS_VERSION}}.0.zip" -o /var/www/html/ps.zip
+
+# To check PS requirements if needed
+#COPY ./phppsinfo.php /var/www/html/index.php 
+
+
+RUN unzip ps.zip \
+    && mv prestashop.zip ../ \
+    && rm -rf ./* \
+    && mv ../prestashop.zip ./ \
+    && unzip prestashop.zip \
+    && rm prestashop.zip \
+    && chown -R www-data:www-data ./
+
+COPY ./entrypoint.sh /usr/local/bin/entrypoint.sh
+
+# Run script init_presta to install from CLI and start apache in foreground
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+

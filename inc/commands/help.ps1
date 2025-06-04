@@ -35,8 +35,6 @@ function displayHelp {
                 Write-Host "        appName: Name of target project."
                 Write-Host "    - startMutagen: Starts file sync for project. The args are:"
                 Write-Host "        appName: Name of target project."
-                Write-Host "    - stopMutagen: Stops file sync for project. The args are:"
-                Write-Host "        appName: Name of target project."
                 Write-Host "    - help: Displays this message."
             }
             'project-create' {
@@ -49,6 +47,10 @@ function displayHelp {
                 Write-Host "    (optionnal) db_name: The database name. Will be set to `$db_table_prefix`$appName by default."
                 Write-Host "    (optionnal) db_table_prefix: The prefix of the tables. A random string of the form XXX_ will be generated."
                 Write-Host "    (optionnal) startAfterCreation: set to false if you want a manual intervention on the container before it is loaded for the first time."
+                Write-Host "    (optionnal) nobuild: Set to true to just setup the project files withour initializing docker."
+                Write-Host "    (optionnal) nosync: Set to true not to start Mutagen."
+                Write-Host "    (optionnal) recreate: Set to true to completely recreate a project if it exists. Caution: there are no confirmation asked for important operations and it is irreversible."
+
             }
             default {
                 throwError 1 "There is no help displayable for $chapter"

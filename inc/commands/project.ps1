@@ -5,17 +5,22 @@ function CreateProject {
         [Parameter(Mandatory=$true)]
         [string]$appName,
 
+        # We allow some aliases
         [Parameter(Mandatory=$true, HelpMessage="One of: wordpress, prestashop, symfony-angular")]
         [ValidateSet(
             "wordpress", "wp", 
-            "prestashop", 
+            "prestashop", "ps",
             "symfony-angular", "sfng"
         )]
         [string]$platform,
     
         [Parameter(Mandatory=$false)]
-        [ValidateSet("8.2", "8.3", "8.4")]
-        [string]$phpVersion = "8.4",
+        [ValidateSet("8.0", "8.2")]
+        [string]$phpVersion = "8.2",
+
+        [Parameter(Mandatory=$false)]
+        [ValidateSet("8.2"<#, "9.0"#>)]
+        [string]$psVersion = "8.2",
     
         [Parameter(Mandatory=$false)]
         [string]$db_password = "",
@@ -33,7 +38,13 @@ function CreateProject {
         [bool]$startAfterCreation = $true,
 
         [Parameter(Mandatory=$false)]
-        [bool]$noBuild = $false
+        [bool]$noBuild = $false,
+
+        [Parameter(Mandatory=$false)]
+        [bool]$noSync = $false,
+
+        [Parameter(Mandatory=$false)]
+        [bool]$recreate = $false # CAUTION: Removes any existing container or files for the given app. useful if creation failed and need to recreate.
     
     )
 
@@ -47,11 +58,14 @@ function CreateProject {
         $noBuild = $false
     }
 
+
     # We allow some aliases
     if($platform -eq 'sfng') {
         $platform = 'symfony-angular'
     } elseif($platform -eq 'wp') {
         $platform = 'wordpress'
+    } elseif($platform -eq 'ps') {
+        $platform = 'prestashop'
     }
 
     # We normalize the app name since we will use it as identifier and we want it as simple as possible.
@@ -85,9 +99,24 @@ function CreateProject {
     assertInDirectory -path $projectPath
 
     # And check if the project exists or there are leftovers from old project
-    if (Test-Path $projectPath) {
-        throwError 5 # Abort
+    # We dont check in case we want to recreate.
+    if ((Test-Path $projectPath) -and (-not $recreate)) {
+        throwError 1 '❗ Project already exists! Aborting...'
     }
+
+
+    # First we remove the previous project if specified to do so. Ask a validation JIC
+    if($recreate) {
+        log 'THIS WILL REMOVE THE CURRENT PROJECT IF IT EXISTS.' 2
+        $confirmation = Read-Host "Do you really want to recreate $appName ? [y]es/[n]o"
+        if(($confirmation -eq 'y') -or ($confirmation -eq 'yes')) {
+            RemoveProject $appName $true
+        } else {
+            log 'Aborting...'
+            exit 0
+        }
+    }
+
 
     # Prepare variables that are shared amongst all templates aswell as the .env file
     # The keys of $templateVars are the placeholders in the template
@@ -103,7 +132,7 @@ function CreateProject {
     # $filesToWrite must contain items in the form of: 
     # @{
     #   'type' = 'content'|'file' # 'content' for outputting content (replacing placeholders), 'file' to copy a file from here to there
-    #   'origin' = $path_of_target_file
+    #   'target' = $path_of_target_file
     #   'value' = "$the_content_or_the_file_path"
     # }
     # TODO: make other platforms!
@@ -132,8 +161,6 @@ function CreateProject {
         $envVars['APP_DB_NAME'] = $db_name
         $envVars['APP_DB_TABLE_PREFIX'] = $db_table_prefix
     
-    #} elseif($platform -eq 'prestashop') {
-    #    $dockercomposeTemplate = "$structPath\docker-compose-template-prestashop.yml"
     } elseif($platform -eq 'symfony-angular') {
 
         $dockercomposeTemplate = Join-Path $structPath_dockercomposes 'docker-compose-sfng.yml'
@@ -165,16 +192,57 @@ function CreateProject {
             'value' = assignVarsInTemplate (Join-Path $structPath_dockerfile 'Dockerfile_angular') $templateVars
         })
 
-        echo $filesToWrite.Values
+    } elseif($platform -eq 'prestashop') {
+        $dockercomposeTemplate = Join-Path $structPath_dockercomposes 'docker-compose-prestashop.yml'
+
+        $templateVars['{{PS_VERSION}}'] = $psVersion
+        $envVars['PS_VERSION'] = $psVersion
+
+        # Set up random values if user did not define any
+        if($db_user -eq "") {
+            $db_user = $appNameNormalized
+        }
+        if($db_password -eq "") {
+            $db_password = generatePassword
+        }
+        if($db_name -eq "") {
+            $db_name =  $db_user
+        }
+        if($db_table_prefix -eq "") {
+            $db_table_prefix =  (generateName -theLength 3) + "_"
+        }
+    
+        $adminPass = generatePassword
+        $adminUser = "admin@$appNameNormalized.docker.localhost"
+        $adminDir =  'admin' + (generateName)
+
+        $envVars['APP_DB_USER'] = $db_user
+        $envVars['APP_DB_PASSWORD'] = $db_password
+        $envVars['APP_DB_NAME'] = $db_name
+        $envVars['APP_DB_TABLE_PREFIX'] = $db_table_prefix
+        $envVars['BO_ADMIN_USER'] = $adminUser
+        $envVars['BO_ADMIN_PASSWD'] = $adminPass
+        $envVars['PS_VERSION'] = $psVersion
+
+        $templateVars['{{APP_NAME}}'] = $appNameNormalized
+        $templateVars['{{APP_DOMAIN}}'] = "$appNameNormalized.docker.localhost"
+        $templateVars['{{PS_VERSION}}'] = $psVersion
+        $templateVars['{{APP_ADMIN_DIR}}'] = $adminDir
+
+        # We will copy the dockerfiles
+        $filesToWrite.Add($filesToWrite.Count, @{
+            'type' = 'content'
+            'target' = Join-Path $projectPath 'Dockerfile_prestashop'
+            'value' = assignVarsInTemplate (Join-Path $structPath_dockerfile 'Dockerfile_prestashop') $templateVars
+        })
 
     } else {
-        echo $exits[4] $platform
-        exit 4
+        throwError 1 "❌ Template does not exists for platform: $platform"
     }
     
     # Check if template exists jic
     if (-not (Test-Path $dockercomposeTemplate)) {
-        throwError 3 "$($exits[3]) $dockercomposeTemplate"
+        throwError 1 "❌ Template not found: $dockercomposeTemplate"
     }
     
     # Replace placeholders with actual values
@@ -199,11 +267,11 @@ function CreateProject {
         'target' = Join-Path $projectPath '.env'
         'value' = $envFileContent
     })
-    $filesToWrite.add($filesToWrite.Count, @{
-        'type' = 'file'
-        'target' = Join-Path $projectPath 'mutagen.yml'
-        'value' = Join-Path $structPath_conf 'mutagen.yml'
-    })
+    #$filesToWrite.add($filesToWrite.Count, @{
+    #    'type' = 'file'
+    #    'target' = Join-Path $projectPath 'mutagen.yml'
+    #    'value' = Join-Path $structPath_conf 'mutagen.yml'
+    #})
 
 
     # Create base project structure
@@ -226,10 +294,12 @@ function CreateProject {
     }
 
     # Also write conf files that are inherent to the platform
-    #$inherentConfPath = Join-Path $structPath_conf $platform  
-    #foreach ($confFile in Get-ChildItem -Path ($inherentConfPath) -File) {
-    #    Copy-Item (Join-Path $inherentConfPath $confFile.Name) (Join-Path $projectPath $confFile.Name)
-    #}
+    $inherentConfPath = Join-Path $structPath_conf $platform  
+    foreach ($confFile in Get-ChildItem -Path ($inherentConfPath) -File) {
+        $destpath = Join-Path $projectPath 'conf'
+        if (-not (Test-Path -path $destpath) ) { New-Item $destpath -Type Directory > $null } # Create directory 'conf' if not exists
+        Copy-Item (Join-Path $inherentConfPath $confFile.Name) (Join-Path $destpath $confFile.Name)
+    }
 
     $message = "Project '$appNameNormalized' successfully created in: $projectPath"
 
@@ -243,7 +313,7 @@ function CreateProject {
                 $message = "$message`n Accessible to https://$appName.docker.localhost"
             }
             'prestashop' {
-
+                $message = "$message`nAccessible to https://$appName.docker.localhost/$adminDir.`nAdmin: $adminUser`nPassword: $adminPass"
             }
             'symfony-angular' {
                 $message = "$message`n Front is accessible at https://front-$appName.docker.localhost`nBack is accessible at https://back-$appName.docker.localhost"
@@ -255,7 +325,9 @@ function CreateProject {
         }
 
         # Don't forget to enable Mutagen for file synchronization
-        startMutagenForProject $appNameNormalized
+        if(-not $nosync) {
+            startMutagenForProject $appNameNormalized
+        }
 
         # set autostart to true so resume work after PC reboot for example
         EnableAutoStart -appName $appName -silent $true
@@ -331,20 +403,26 @@ function EnableAutoStart {
 function RemoveProject {
     param(
         [Parameter(Mandatory=$true)]
-        [string]$appName
+        [string]$appName,
+        [Parameter(Mandatory=$false)]
+        [string]$modeAuto=$false # Just remove everything without checking. Useful for automation
     )
 
     # Check if folder exists. if not, just log an error because the container can not exist without the folders.
     $projectPath = getProjectPath $appName
-    $wwwPath     = Join-Path $projectPath 'www'
-    $dbPath      = Join-Path $projectPath 'db'
-    if(-not (Test-Path $wwwPath) -and -not (Test-Path $dbPath)) {
-        log "There is no project named '$appName'" 4
+    if(-not (Test-Path $projectPath)) {
+        $msg = "There is no project named '$appName'."
+        if($modeAuto) {
+            log $msg
+            return $null
+        } else {
+            throwError 1 $msg
+        }
     }
 
     # If exists, we check if a container aleady exists for the project and delete it
     $IDs = docker ps -f name=$appName -a --format '{{.ID}}'
-    if($IDs.Count -eq 0) {
+    if(($IDs.Count -eq 0) -and (-not $modeAuto)) {
         log "No container was found for project '$appName'. Going to remove folders only."
     } 
 
@@ -353,8 +431,12 @@ function RemoveProject {
 
     # We just ask for confirmation jic xD
     $confirmation = ''
-    while((($confirmation -ne 'y') -and ($confirmation -ne 'n')) -and (($confirmation -ne 'yes') -and ($confirmation -ne 'no'))) {
-        $confirmation = Read-Host "Are you sure you want to delete the project $appName ? [y]es/[n]o"
+    if(-not $modeAuto) {
+        while((($confirmation -ne 'y') -and ($confirmation -ne 'n')) -and (($confirmation -ne 'yes') -and ($confirmation -ne 'no'))) {
+            $confirmation = Read-Host "Are you sure you want to delete the project $appName ? [y]es/[n]o"
+        }
+    } else {
+        $confirmation = 'y'
     }
 
     if(($confirmation -eq 'y') -or ($confirmation -eq 'yes')) {
@@ -368,19 +450,34 @@ function RemoveProject {
         Pop-Location
         # then delete the files
 
-        # Just be sure to delete a valid project!
-        assertInDirectory $projectPath
-        rm $projectPath -r -fo
+        # Don't rm if folder does not exists
+        if(Test-Path $projectPath) {
+            # Just be sure to delete a valid project!
+            assertInDirectory $projectPath
 
+            rm $projectPath -r -fo
+
+            # Last check to see if folder still exists. If so, a problem has occured and we stop here to prevent further errors.
+            if(Test-Path $projectPath) {
+                throwError 1 "Soemthing wednt wrong ! The directory could not be removed. Aborting"
+            }
+
+        }
+        
     } else {
         # Abort no matter what the user prompted if neither 'y' or 'yes'
         log 'Aborting...'
         exit 0
     }
     
-    log "Project $appName successfully deleted !" -1
+    
 
-    exit 0
+    if($modeAuto) {
+        log "Project $appName successfully deleted !"
+    } else {
+        log "Project $appName successfully deleted !" -1
+        exit 0
+    }
 
 }
 
@@ -524,7 +621,7 @@ function startMutagenForProject {
 
     # File is stored in project's dir
     # If it does not exists, we just start the session without it
-    $mutagenConfFile = Join-Path $projectPath mutagen.yml
+    $mutagenConfFile = Join-Path $projectPath "conf/mutagen.yml"
     $confFileArg = ''
     if(Test-Path $mutagenConfFile) {
         $confFileArg = "--configuration-file=$mutagenConfFile"

@@ -61,16 +61,20 @@ switch ($Command) {
                     }
                 }
 
+                # We will call the command depending of what the user provided
                 $fnArgs = @{
                     'appName' = ''
                     'platform' = ''
                     'phpVersion' = ''
+                    'psVersion' = ''
                     'db_user' = ''
                     'db_password' = ''
                     'db_name' = ''
                     'db_table_prefix' = ''
                     'startAfterCreation' = $true
                     'nobuild' = $false
+                    'nosync' = $false
+                    'recreate' = $false
                 }
                 $argString = getArgsFormatted $fnArgs $parsedArgs
 

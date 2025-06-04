@@ -1,0 +1,79 @@
+﻿# This section is metadata for Skippy - do NOT delete it
+#skippy-start-conf
+#platform=prestashop
+#psVersion=8.2
+#mutagensync=www:app-{{APPNAME_NORMALIZED}}/var/www/html
+#mutagenargs=default-file-mode-beta:0644,default-directory-mode-beta:0755,default-owner-beta:www-data,default-group-beta:www-data
+#skippy-end-conf
+
+services:
+
+  app-{{APPNAME_NORMALIZED}}:
+    container_name: app-{{APPNAME_NORMALIZED}}
+    build:
+      context: ./
+      dockerfile: Dockerfile_prestashop
+    restart: no
+    environment:
+      DB_SERVER: db-{{APPNAME_NORMALIZED}}
+      DB_NAME: ${APP_DB_NAME}
+      DB_USER: ${APP_DB_USER}
+      DB_PASSWD: ${APP_DB_PASSWORD}
+      DB_PREFIX: ${APP_DB_TABLE_PREFIX}
+      BO_ADMIN_USER: ${BO_ADMIN_USER}
+      BO_ADMIN_PASSWD: ${BO_ADMIN_PASSWD}
+      APP_NAME: {{APPNAME_NORMALIZED}}
+      APP_DOMAIN: {{APP_DOMAIN}}
+      APP_ADMIN_DIR: {{APP_ADMIN_DIR}}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.{{APPNAME_NORMALIZED}}.rule=Host(`{{APPNAME_NORMALIZED}}.docker.localhost`)"
+      - "traefik.http.routers.{{APPNAME_NORMALIZED}}.entrypoints=websecure"
+      - "traefik.http.routers.{{APPNAME_NORMALIZED}}.tls=true"
+      - "traefik.http.services.{{APPNAME_NORMALIZED}}.loadbalancer.server.port=80"
+      - "traefik.docker.network=web"
+    networks:
+      - web
+      - internal
+
+
+  db-{{APPNAME_NORMALIZED}}:
+    container_name: db-{{APPNAME_NORMALIZED}}
+    image: mysql:5.7
+    restart: no
+    environment:
+      MYSQL_USER: ${APP_DB_USER}
+      MYSQL_PASSWORD: ${APP_DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${APP_DB_PASSWORD}
+      MYSQL_DATABASE: ${APP_DB_NAME}
+    networks:
+      - internal
+
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: pma-{{APPNAME_NORMALIZED}}
+    restart: no
+    environment:
+      PMA_HOST: db-{{APPNAME_NORMALIZED}}
+      PMA_USER: ${APP_DB_USER}
+      PMA_PASSWORD: ${APP_DB_PASSWORD}
+      UPLOAD_LIMIT: 300M
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pma-{{APPNAME_NORMALIZED}}.rule=Host(`pma-{{APPNAME_NORMALIZED}}.docker.localhost`)"
+      - "traefik.http.routers.pma-{{APPNAME_NORMALIZED}}.entrypoints=websecure"
+      - "traefik.http.routers.pma-{{APPNAME_NORMALIZED}}.tls=true"
+      - "traefik.http.services.pma-{{APPNAME_NORMALIZED}}.loadbalancer.server.port=80"
+      - "traefik.docker.network=web"
+    networks:
+      - web
+      - internal
+
+networks:
+  web:
+    external: true
+  internal:
+    driver: bridge
+
+
