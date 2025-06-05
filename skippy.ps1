@@ -125,14 +125,14 @@ switch ($Command) {
             }
             'startMutagen' {
                 if($parsedArgs['appName']) {
-                    startMutagenForProject -appName 'appName'parsedArgs[0]
+                    startMutagenForProject -appName $parsedArgs['appName']
                 } else {
                     startMutagenForProject
                 }
             }
             'stopMutagen' {
                 if($parsedArgs['appName']) {
-                    stopMutagenForProject -appName 'appName'parsedArgs[0]
+                    stopMutagenForProject -appName $parsedArgs['appName']
                 } else {
                     stopMutagenForProject
                 }
