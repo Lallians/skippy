@@ -137,6 +137,13 @@ switch ($Command) {
                     stopMutagenForProject
                 }
             }
+            "cd" {
+                if($parsedArgs['appName']) {
+                    skippy_cd -appName $parsedArgs['appName']
+                } else {
+                    skippy_cd
+                }
+            }
             'help' {
                 displayHelp 'project'
             }

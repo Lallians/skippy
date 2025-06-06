@@ -702,3 +702,19 @@ function stopMutagenForProject {
     #Invoke-Expression "mutagen sync terminate $appName-www"
 
 }
+
+
+# Simple helper to go to project directory.
+function skippy_cd {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$appName
+    )
+
+    if(-not (projectExists -appName $appName)) {
+        throwError 1 "Project $appName does not exists."
+    }
+
+    Push-Location (getProjectPath $appName)
+
+}

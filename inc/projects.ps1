@@ -122,3 +122,14 @@ function getSkippySettingsForProject {
 
     return $config
 }
+
+# Fucntion that returns true if a project exists, false otherwise.
+function projectExists {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$appName
+    )
+    
+    $projects = getAvailableProjects
+    return $projects.ContainsKey($appName)
+}
