@@ -1,0 +1,18 @@
+############ SECTION Skippy ############
+.env
+/.dev
+############ END SECTION Skippy ############
+
+
+############ Misc ############
+.idea/
+.DS_Store
+node_modules/
+vendor/
+############ END Misc ############
+
+
+############ Project ############
+/db/*
+!/db/.gitkeep
+############ END Project ############

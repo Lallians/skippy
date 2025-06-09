@@ -133,3 +133,105 @@ function projectExists {
     $projects = getAvailableProjects
     return $projects.ContainsKey($appName)
 }
+
+# returns an array of the mutagen sync sessions name for a given project
+function getMutagenSessionsForApp {
+    param (
+        [string]$appName
+    )
+
+    $projectPath = getProjectPath $appName
+
+    if(-not (Test-Path $projectPath)) {
+        throwError 1 "App $appName does not exists"
+    }
+
+    # We read the headers in the docker compose which contains the list of pathes to sync
+    $projectConf = getSkippySettingsForProject $appName
+
+    # File is stored in project's dir
+    # If it does not exists, we just start the session without it
+    $mutagenConfFile = Join-Path $projectPath "conf/mutagen.yml"
+    $confFileArg = ''
+    if(Test-Path $mutagenConfFile) {
+        $confFileArg = "--configuration-file=$mutagenConfFile"
+    }
+
+    # We prepare the additional arguments for the mutagen session such as default user, default group...
+    $additional_args = ''
+    if($projectConf.ContainsKey('mutagenargs')) {
+        $adtl_args = $projectConf['mutagenargs']-split ','
+        if($adtl_args.Count -gt 0) {
+            foreach($adtl_arg in $adtl_args) {
+                $split_arg = $adtl_arg -split ':'
+                if($split_arg.Count -ne 2) {
+                    log "Argument $adtl_arg is wrongly formatted and thus it has been ignored" 2
+                    continue
+                }
+                $adtl_arg_key = $split_arg[0]
+                $adtl_arg_val = $split_arg[1]
+    
+                $additional_args = "$additional_args --$adtl_arg_key=$adtl_arg_val "
+    
+            }
+        }
+        
+    }
+
+    # get data about opened sessions
+    $sessions = @()
+    $output = mutagen sync list
+
+    $pathes = $projectConf['mutagensync'] -split ','
+    foreach($path in $pathes) {
+        $split_path = $path -split ':'
+        if($split_path.Count -ne 2) {
+            throwError 1 'Can not enable Mutagen for project - pathes are wrongly formatted'
+        }
+
+        $local = Join-Path $projectPath $split_path[0]
+        $remote = $split_path[1]
+        $identifier = Split-Path $local -Leaf # we use out local folder name as identifier for mutagen sync session name (warning: folders with same name will induce conflicts!)
+        
+        $sessionName = "$appName-$identifier"
+        $session = @{
+            localPath = $local
+            remotePath = "docker://$remote"
+            name = $sessionName
+            args = $additional_args
+            confFileArg = $confFileArg
+            status = 'inactive'
+        }
+
+        
+        if ($output) {
+            # We read the output of mutagen sync list
+            # the goal is to check if a session exists for the pathes in the app configuration
+            $currentSession = ''
+            foreach ($line in $output) {
+
+                #If we are reading a session name line while the flag is true, we know we are checking an other sync session.
+                if($line -match "Name:\s+$sessionName\S*" -and ($currentSession -eq $sessionName)) {
+                    $currentSession = ''
+                }
+
+                # The session belongs to the app, we add it to the list
+                if($line -match "Name:\s+$sessionName\S*") {
+                    $session.status = 'active'
+                    $currentSession = $sessionName
+                }
+
+                # We also read the status if the app
+                if(($currentSession -eq $sessionName) -and ($line -match "Status:\s+\[Paused\]\S*")) {
+                    $session.status = 'paused'
+                }
+
+            }
+        }
+
+        $sessions += $session
+
+    }
+    
+    return $sessions
+}

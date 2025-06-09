@@ -606,9 +606,7 @@ function startMutagenForProject {
         [string]$appName
     )
 
-    $projectPath = getProjectPath $appName
-
-    if(-not (Test-Path $projectPath)) {
+    if(-not (projectExists -appName $appName)) {
         throwError 1 "App $appName does not exists"
     }
 
@@ -619,50 +617,28 @@ function startMutagenForProject {
         throwError 1 'Can not enable Mutagen for project - missing mutagensync in headers'
     }
 
-    # File is stored in project's dir
-    # If it does not exists, we just start the session without it
-    $mutagenConfFile = Join-Path $projectPath "conf/mutagen.yml"
-    $confFileArg = ''
-    if(Test-Path $mutagenConfFile) {
-        $confFileArg = "--configuration-file=$mutagenConfFile"
-    }
 
-    # We prepare the additional arguments for the mutagen session such as default user, default group...
-    $additional_args = ''
-    if($projectConf.ContainsKey('mutagenargs')) {
-        $adtl_args = $projectConf['mutagenargs']-split ','
-        if($adtl_args.Count -gt 0) {
-            foreach($adtl_arg in $adtl_args) {
-                $split_arg = $adtl_arg -split ':'
-                if($split_arg.Count -ne 2) {
-                    log "Argument $adtl_arg is wrongly formatted and thus it has been ignored" 2
-                    continue
-                }
-                $adtl_arg_key = $split_arg[0]
-                $adtl_arg_val = $split_arg[1]
-    
-                $additional_args = "$additional_args --$adtl_arg_key=$adtl_arg_val "
-    
-            }
-        }
-        
-    }
+    # Two possible cases: the sync session does not exists and we must create it or it does not and we resume it.
+    $sessions = getMutagenSessionsForApp -appName $appName
 
-    $pathes = $projectConf['mutagensync'] -split ','
-    foreach($path in $pathes) {
-        $split_path = $path -split ':'
-        if($split_path.Count -ne 2) {
-            throwError 1 'Can not enable Mutagen for project - pathes are wrongly formatted'
+
+    foreach($session in $sessions) {
+        $local = $session.localPath
+        $remote = $session.remotePath
+        $name = $session.name
+        $additional_args = $session.args
+        $confFileArg = $session.confFileArg
+
+        # If the sessions does not exists, we create it. Else, we resume it.
+        if($session.status -eq 'inactive') {
+            Invoke-Expression "mutagen sync create $local $remote --name=$name $additional_args $confFileArg"
+        } elseif($session.status -eq 'paused') {
+            Invoke-Expression "mutagen sync resume $name"
+        } else {
+            log "The mutagen session is already running." 2
         }
 
-        $local = Join-Path $projectPath $split_path[0]
-        $remote = $split_path[1]
-        $identifier = Split-Path $local -Leaf # we use out local folder name as identifier for mutagen sync session name (warning: folders with same name will induce conflicts!)
-        
-        Invoke-Expression "mutagen sync create $local docker://$remote --name=$appName-$identifier $additional_args $confFileArg"
-
     }
-
     
 }
 
@@ -673,9 +649,8 @@ function stopMutagenForProject {
         [string]$appName
     )
 
-    $projectPath = getProjectPath $appName
 
-    if(-not (Test-Path $projectPath)) {
+    if(-not (projectExists -appName $appName)) {
         throwError 1 "App $appName does not exists"
     }
 
@@ -683,23 +658,25 @@ function stopMutagenForProject {
     $projectConf = getSkippySettingsForProject $appName
 
     if(-not ($projectConf.ContainsKey('mutagensync'))) {
-        throwError 1 'Can not disable Mutagen for project - missing mutagensync in headers'
+        throwError 1 'Can not enable Mutagen for project - missing mutagensync in headers'
     }
 
-    $pathes = $projectConf['mutagensync'] -split ','
-    foreach($path in $pathes) {
-        $split_path = $path -split ':'
-        if($split_path.Count -ne 2) {
-            throwError 1 'Can not disable Mutagen for project - pathes are wrongly formatted'
+
+    $sessions = getMutagenSessionsForApp -appName $appName
+    foreach($session in $sessions) {
+
+        $name = $session.name
+
+        # If the sessions does not exists, we create it. Else, we resume it.
+        if($session.status -eq 'inactive') {
+            log "The mutagen session does not exists." 2
+        } elseif($session.status -eq 'active') {
+            Invoke-Expression "mutagen sync pause $name"
+        } else {
+            log "The mutagen session is already paused." 2
         }
 
-        $identifier = Split-Path (Join-Path $projectPath $split_path[0]) -Leaf # we use out local folder name as identifier for mutagen sync session name
-
-        Invoke-Expression "mutagen sync terminate $appName-$identifier"
-
     }
-
-    #Invoke-Expression "mutagen sync terminate $appName-www"
 
 }
 
